@@ -1,0 +1,41 @@
+# Rust & Cargo build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock.bk
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor configurations
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+*.bak
+
+# Node & Web temporary files (if any tools are used)
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Application exported test backups / runtime caches
+finances_personals_backup_*.json
+budgeting_backup_*.json
+*.tmp
+idea.md

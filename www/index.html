@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Finances Personals - Planificació & Control Diari</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Hidden File Input for JSON Backup Import -->
+    <input type="file" id="globalFileInputImport" accept=".json,application/json" style="display: none;">
+
+    <!-- Onboarding Screen (Step-by-step setup wizard) -->
+    <div id="onboardingScreen" class="onboarding-overlay active">
+        <div class="onboarding-card">
+            <!-- Step 1: Net Income & Category Percentages -->
+            <div id="onboardingStep1" class="wizard-step active">
+                <div class="wizard-header">
+                    <div class="brand-icon">🏛️</div>
+                    <h2>Gestor de Finances Personals</h2>
+                    <p class="subtitle">Pas 1 de 2: Configuració inicial del Sou Net i Partides Pressupostàries</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 10px;">
+                    <label for="onboardIncome">Salari Net Mensual (€)</label>
+                    <input type="number" id="onboardIncome" step="10" min="0" value="1323" class="form-input form-input-lg" placeholder="1323.00" required>
+                    <div class="form-help info-box" style="margin-top: 6px;">
+                        <span>💡</span>
+                        <span><strong>Salari de Referència:</strong> Predefinit amb el Salari Mínim Interprofessional (SMI) vigent (<strong>1.323,00 €</strong> / mes en 12 pagues). Podeu ajustar-lo al vostre sou real.</span>
+                    </div>
+                </div>
+
+                <!-- Interactive Category Allocation -->
+                <div class="allocation-section">
+                    <div class="allocation-header">
+                        <h4>Assignació de Partides Pressupostàries (% del Sou Net)</h4>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="onboardTotalPctBadge" class="pct-badge">Total: 100%</span>
+                            <button type="button" class="btn btn-sm btn-ghost" id="btnResetDefaultPcts" title="Restablir percentatges recomanats">
+                                ↺ Recomanats
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper" style="border: none; box-shadow: none;">
+                        <table class="allocation-table">
+                            <thead>
+                                <tr>
+                                    <th>Partida / Categoria</th>
+                                    <th style="width: 110px;">Percentatge (%)</th>
+                                    <th>Assignació Mensual</th>
+                                    <th>Assignació Diària</th>
+                                </tr>
+                            </thead>
+                            <tbody id="onboardCategoriesTableBody">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Backup restore shortcut -->
+                <div class="backup-actions-box">
+                    <div class="info">
+                        <strong>Ja teniu una còpia de seguretat prèvia?</strong>
+                        <div>Podeu carregar un fitxer JSON existent directament.</div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btnOnboardImport">
+                        📂 Importar fitxer .json
+                    </button>
+                </div>
+
+                <div class="wizard-footer">
+                    <button type="button" class="btn btn-primary btn-lg" id="btnGoToStep2">
+                        <span>Següent: Despeses Periòdiques ➡️</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Recurring Expenses -->
+            <div id="onboardingStep2" class="wizard-step">
+                <div class="wizard-header">
+                    <div class="brand-icon">📋</div>
+                    <h2>Despeses Periòdiques i Recurrents</h2>
+                    <p class="subtitle">Pas 2 de 2: Pagaments fixos mensuals, trimestrals o anuals</p>
+                </div>
+
+                <p class="section-desc">Aquestes despeses es mensualitzen i es dedueixen automàticament de la partida diària corresponent per garantir un límit disponible real.</p>
+
+                <div class="table-wrapper" style="max-height: 230px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Concepte</th>
+                                <th>Import</th>
+                                <th>Freqüència</th>
+                                <th>Cost Mensual</th>
+                                <th>Categoria</th>
+                                <th>Acció</th>
+                            </tr>
+                        </thead>
+                        <tbody id="onboardRecTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <form id="formOnboardAddRec" class="recurring-form-card" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <label for="onboardRecName">Concepte</label>
+                        <input type="text" id="onboardRecName" placeholder="Ex: Lloguer, Assegurança..." required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="onboardRecAmount">Import (€)</label>
+                        <input type="number" id="onboardRecAmount" step="0.01" min="0.01" placeholder="0.00" required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="onboardRecFreq">Freqüència</label>
+                        <select id="onboardRecFreq" class="form-input">
+                            <option value="Monthly">Mensual</option>
+                            <option value="Quarterly">Trimestral</option>
+                            <option value="Annually">Anual</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="onboardRecCat">Categoria</label>
+                        <select id="onboardRecCat" class="form-input">
+                            <!-- Categories -->
+                        </select>
+                    </div>
+                    <div class="form-group form-group-btn">
+                        <button type="submit" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">+ Afegir Recurrent</button>
+                    </div>
+                </form>
+
+                <div class="wizard-footer" style="justify-content: space-between;">
+                    <button type="button" class="btn btn-outline" id="btnBackToStep1">⬅️ Enrere</button>
+                    <button type="button" class="btn btn-primary btn-lg" id="btnFinishOnboarding">
+                        <span>Accedir al Panell de Finances ✔️</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Financial Dashboard Container -->
+    <div class="app-container" id="mainAppContainer">
+        <!-- Top Corporate Header -->
+        <header class="app-header">
+            <div class="header-inner">
+                <div class="brand">
+                    <div class="brand-icon">🏛️</div>
+                    <div class="brand-text">
+                        <h1>Gestor de Finances Personals</h1>
+                        <p class="subtitle">Planificació i control diari del pressupost</p>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <div class="time-simulator">
+                        <span class="day-badge" id="dayIndicator">Dia 1 de 30</span>
+                        <button class="btn btn-secondary btn-sm" id="btnAdvanceDay" title="Avança 1 dia per simular l'acumulació de saldo disponible">
+                            <span>Avançar Dia</span> ⏩
+                        </button>
+                    </div>
+
+                    <button class="btn btn-secondary btn-sm" id="btnHeaderExport" title="Exportar còpia de seguretat en fitxer JSON">
+                        💾 Exportar (.json)
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btnHeaderImport" title="Importar còpia de seguretat d'un fitxer JSON">
+                        📂 Importar (.json)
+                    </button>
+
+                    <button class="btn btn-primary" id="btnOpenExpenseModal">
+                        <span>+ Nova Despesa</span>
+                    </button>
+                    <button class="btn btn-icon" id="btnOpenConfigModal" title="Configuració Global">
+                        ⚙️
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Settlement Notification Banner (Hidden by default, shown at month end) -->
+        <div id="settlementContainer" style="display: none;"></div>
+
+        <!-- Global Summary Metrics Bar -->
+        <section class="summary-bar">
+            <div class="summary-card accent-navy">
+                <div class="card-header-flex">
+                    <div class="card-label">Sou Net Mensual</div>
+                    <span class="card-badge">Base</span>
+                </div>
+                <div class="card-value text-navy" id="valIncome">1.323,00 €</div>
+                <div class="card-subtext">Ingrés disponible per al mes</div>
+            </div>
+
+            <div class="summary-card accent-amber">
+                <div class="card-header-flex">
+                    <div class="card-label">Despeses Periòdiques</div>
+                    <span class="card-badge" style="background: #fef3c7; color: #b45309;">Fixes</span>
+                </div>
+                <div class="card-value text-amber" id="valRecurring">0,00 €</div>
+                <div class="card-subtext">Compromisos mensualitzats</div>
+            </div>
+
+            <div class="summary-card accent-blue">
+                <div class="card-header-flex">
+                    <div class="card-label">Límit Diari Net</div>
+                    <span class="card-badge">Disponible</span>
+                </div>
+                <div class="card-value text-blue" id="valDailyTotal">44,10 €/dia</div>
+                <div class="card-subtext">Capacitat de despesa neta diària</div>
+            </div>
+
+            <div class="summary-card accent-green">
+                <div class="card-header-flex">
+                    <div class="card-label">Estat del Període</div>
+                    <span class="card-badge" style="background: #d1fae5; color: #047857;">Balanç</span>
+                </div>
+                <div class="card-value text-emerald" id="valStreak">6/6 en Superàvit</div>
+                <div class="card-subtext" id="valStreakSub">Totes les partides en positiu</div>
+            </div>
+        </section>
+
+        <!-- Category Grid Section -->
+        <main class="main-content">
+            <div class="section-header">
+                <div>
+                    <h2>Partides Pressupostàries Diàries</h2>
+                    <p class="section-desc">Estat de saldo acumulat i consum pressupostari per cada categoria</p>
+                </div>
+            </div>
+
+            <div class="categories-grid" id="categoriesGrid">
+                <!-- Dynamically populated by app.js -->
+            </div>
+        </main>
+
+        <!-- Funds & Cumulative Savings Section -->
+        <section class="funds-section">
+            <div class="section-header">
+                <div>
+                    <h2>Fons de Reserva, Objectius i Inversió</h2>
+                    <p class="section-desc">Acumulació d'excedents i estalvis liquidats a final de període</p>
+                </div>
+            </div>
+            <div class="funds-grid">
+                <div class="fund-card">
+                    <div class="fund-header">
+                        <span class="fund-icon">🛡️</span>
+                        <h3>Fons d'Emergència</h3>
+                    </div>
+                    <p class="fund-desc">Alimentat pels sobrants d'Habitatge, Transport i Subministraments al tancament de mes.</p>
+                    <div class="fund-amount" id="fundEmergency">0,00 €</div>
+                </div>
+
+                <div class="fund-card">
+                    <div class="fund-header">
+                        <span class="fund-icon">✈️</span>
+                        <h3>Fons d'Objectius & Projectes</h3>
+                    </div>
+                    <p class="fund-desc">Alimentat pel romanent no gastat de la partida d'Oci i Despeses personals.</p>
+                    <div class="fund-amount" id="fundGoal">0,00 €</div>
+                </div>
+
+                <div class="fund-card">
+                    <div class="fund-header">
+                        <span class="fund-icon">📈</span>
+                        <h3>Fons d'Estalvi i Inversió</h3>
+                    </div>
+                    <p class="fund-desc">Partida fixa d'inversió directament consolidada cada mes (segons el % assignat).</p>
+                    <div class="fund-amount" id="fundInvestment">0,00 €</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Expense History Log Section -->
+        <section class="history-section">
+            <div class="section-header">
+                <div>
+                    <h2>Historial de Moviments Diaris</h2>
+                    <p class="section-desc">Registre detallat de despeses puntuals anotades</p>
+                </div>
+                <button class="btn btn-sm btn-ghost" id="btnClearExpenses">Netejar Registres</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data / Dia</th>
+                            <th>Categoria</th>
+                            <th>Concepte / Detall</th>
+                            <th>Import</th>
+                            <th style="text-align: right;">Accions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal: Add or Edit Expense -->
+    <div class="modal-backdrop" id="modalExpense">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalExpenseTitle">Registrar Nova Despesa Diària</h3>
+                <button class="btn-close" id="btnCloseExpenseModal" type="button">&times;</button>
+            </div>
+            <form id="formExpense">
+                <div class="modal-body">
+                    <input type="hidden" id="expEditId" value="">
+                    <div class="form-group">
+                        <label for="expCategory">Categoria Assignada</label>
+                        <select id="expCategory" required class="form-input">
+                            <!-- Categories populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="expAmount">Import (€)</label>
+                        <input type="number" id="expAmount" step="0.01" min="0.01" placeholder="Ex: 12.50" required class="form-input form-input-lg">
+                    </div>
+                    <div class="form-group">
+                        <label for="expNote">Concepte / Detall</label>
+                        <input type="text" id="expNote" placeholder="Ex: Compra supermercat, Cafè, Sopar..." required class="form-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="btnCancelExpense">Cancel·lar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveExpenseSubmit">Guardar Moviment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Global Configuration (Income, Editable Percentages, Recurring, Backups) -->
+    <div class="modal-backdrop" id="modalConfig">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3>Configuració de Finances Personals</h3>
+                <button class="btn-close" id="btnCloseConfigModal" type="button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Salary Section -->
+                <div class="form-group">
+                    <label for="cfgIncome">Salari Net Mensual (€)</label>
+                    <div class="input-with-button">
+                        <input type="number" id="cfgIncome" step="10" min="0" value="1323" class="form-input">
+                        <button type="button" class="btn btn-primary" id="btnSaveIncome">Actualitzar Sou</button>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Percentage Configuration Section -->
+                <div class="allocation-section">
+                    <div class="allocation-header">
+                        <h4>Percentatges de Partides Pressupostàries</h4>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="cfgTotalPctBadge" class="pct-badge">Total: 100%</span>
+                            <button type="button" class="btn btn-sm btn-ghost" id="btnCfgResetPcts">↺ Recomanats</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" style="border: none; box-shadow: none;">
+                        <table class="allocation-table">
+                            <thead>
+                                <tr>
+                                    <th>Categoria</th>
+                                    <th style="width: 110px;">Percentatge (%)</th>
+                                    <th>Assignació Mensual</th>
+                                    <th>Assignació Diària</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cfgCategoriesTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="text-align: right; margin-top: 10px;">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnSavePercentages">
+                            Guardar Percentatges
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Backup & Restore Section -->
+                <div>
+                    <h4 style="margin-bottom: 8px; color: var(--navy-primary);">Còpia de Seguretat (Fitxer JSON)</h4>
+                    <div class="backup-actions-box">
+                        <div class="info">
+                            <strong>Exportar o Importar dades:</strong>
+                            <div>Deseu l'estat en un fitxer al vostre disc per carregar-lo en altres dispositius o navegadors.</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-outline btn-sm" id="btnModalExport">
+                                💾 Exportar Dades
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" id="btnModalImport">
+                                📂 Importar Dades
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Recurring Expenses List -->
+                <div>
+                    <h4 style="margin-bottom: 8px; color: var(--navy-primary);">Despeses Periòdiques / Recurrents</h4>
+                    <div class="table-wrapper" style="max-height: 200px; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Concepte</th>
+                                    <th>Import</th>
+                                    <th>Freqüència</th>
+                                    <th>Cost Mensual</th>
+                                    <th>Categoria</th>
+                                    <th style="text-align: right;">Accions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recurringTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Add/Edit Recurring Form -->
+                <div>
+                    <h5 style="margin-bottom: 6px; font-weight: 700;" id="recFormTitle">Afegir Despesa Recurrent</h5>
+                    <form id="formAddRecurring" class="recurring-form-card">
+                        <input type="hidden" id="recEditId" value="">
+                        <div class="form-group">
+                            <label for="recName">Concepte</label>
+                            <input type="text" id="recName" placeholder="Ex: Gimnàs, Assegurança..." required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="recAmount">Import (€)</label>
+                            <input type="number" id="recAmount" step="0.01" min="0.01" placeholder="0.00" required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="recFreq">Freqüència</label>
+                            <select id="recFreq" class="form-input">
+                                <option value="Monthly">Mensual</option>
+                                <option value="Quarterly">Trimestral</option>
+                                <option value="Annually">Anual</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="recCategory">Categoria</label>
+                            <select id="recCategory" class="form-input">
+                                <!-- Populated -->
+                            </select>
+                        </div>
+                        <div class="form-group form-group-btn">
+                            <button type="submit" class="btn btn-primary" id="btnSubmitRecurring" style="width: 100%; text-align: center; justify-content: center;">+ Guardar Recurrent</button>
+                        </div>
+                    </form>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Reset Options -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <button type="button" class="btn btn-outline btn-sm" id="btnRestartOnboarding">
+                        🔄 Reconfigurar amb Assistent
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" id="btnResetAllData">
+                        🗑️ Esborrar Totes les Dades
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
