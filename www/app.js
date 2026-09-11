@@ -481,11 +481,11 @@ function renderOnboardRecTable() {
         tr.innerHTML = `
             <td><strong>${rec.name}</strong></td>
             <td>${formatCurrency(rec.amount)}</td>
-            <td>${freqText}</td>
-            <td>${formatCurrency(monthly)}/mes</td>
-            <td>${cat.icon} ${cat.name}</td>
-            <td>
-                <button class="btn btn-ghost btn-sm" onclick="deleteRecurring('${rec.id}')" style="color: var(--status-danger);">🗑️</button>
+            <td><span class="card-badge" style="background: var(--blue-subtle);">${freqText}</span></td>
+            <td style="font-weight: 600;">${formatCurrency(monthly)}/mes</td>
+            <td><span class="cell-badge">${cat.icon} ${cat.name}</span></td>
+            <td style="text-align: right;">
+                <button class="btn btn-ghost btn-sm" onclick="deleteRecurring('${rec.id}')" style="color: var(--status-danger);" title="Eliminar">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);

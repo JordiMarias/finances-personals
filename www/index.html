@@ -114,15 +114,15 @@
                 </div>
 
                 <form id="formOnboardAddRec" class="recurring-form-card" style="margin-top: 10px;">
-                    <div class="form-group">
+                    <div class="form-group col-name">
                         <label for="onboardRecName">Concepte</label>
-                        <input type="text" id="onboardRecName" placeholder="Ex: Lloguer, Assegurança..." required class="form-input">
+                        <input type="text" id="onboardRecName" placeholder="Ex: Lloguer, Assegurança, Gimnàs..." required class="form-input">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group col-amount">
                         <label for="onboardRecAmount">Import (€)</label>
                         <input type="number" id="onboardRecAmount" step="0.01" min="0.01" placeholder="0.00" required class="form-input">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group col-freq">
                         <label for="onboardRecFreq">Freqüència</label>
                         <select id="onboardRecFreq" class="form-input">
                             <option value="Monthly">Mensual</option>
@@ -130,14 +130,14 @@
                             <option value="Annually">Anual</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group col-cat">
                         <label for="onboardRecCat">Categoria</label>
                         <select id="onboardRecCat" class="form-input">
                             <!-- Categories -->
                         </select>
                     </div>
-                    <div class="form-group form-group-btn">
-                        <button type="submit" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">+ Afegir Recurrent</button>
+                    <div class="form-group col-btn form-group-btn">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">+ Afegir Recurrent</button>
                     </div>
                 </form>
 
@@ -444,15 +444,15 @@
                     <h5 style="margin-bottom: 6px; font-weight: 700;" id="recFormTitle">Afegir Despesa Recurrent</h5>
                     <form id="formAddRecurring" class="recurring-form-card">
                         <input type="hidden" id="recEditId" value="">
-                        <div class="form-group">
+                        <div class="form-group col-name">
                             <label for="recName">Concepte</label>
                             <input type="text" id="recName" placeholder="Ex: Gimnàs, Assegurança..." required class="form-input">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group col-amount">
                             <label for="recAmount">Import (€)</label>
                             <input type="number" id="recAmount" step="0.01" min="0.01" placeholder="0.00" required class="form-input">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group col-freq">
                             <label for="recFreq">Freqüència</label>
                             <select id="recFreq" class="form-input">
                                 <option value="Monthly">Mensual</option>
@@ -460,13 +460,13 @@
                                 <option value="Annually">Anual</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group col-cat">
                             <label for="recCategory">Categoria</label>
                             <select id="recCategory" class="form-input">
                                 <!-- Populated -->
                             </select>
                         </div>
-                        <div class="form-group form-group-btn">
+                        <div class="form-group col-btn form-group-btn">
                             <button type="submit" class="btn btn-primary" id="btnSubmitRecurring" style="width: 100%; text-align: center; justify-content: center;">+ Guardar Recurrent</button>
                         </div>
                     </form>
