@@ -1336,3 +1336,413 @@ select.form-input {
     20%, 60% { transform: translateX(-4px); }
     40%, 80% { transform: translateX(4px); }
 }
+
+/* ==========================================================================
+   Privacy & Local-First Custody Modal Styling
+   ========================================================================== */
+
+.privacy-banner {
+    background: linear-gradient(135deg, #f0f9fc 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+}
+
+.privacy-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--navy-primary);
+    color: var(--text-white);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.privacy-features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.privacy-feature-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+}
+
+.privacy-feature-card:hover {
+    border-color: var(--blue-accent);
+    box-shadow: var(--shadow-sm);
+}
+
+.privacy-feature-card .privacy-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    background: var(--blue-light-bg);
+    padding: 10px;
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+}
+
+.privacy-feature-card .privacy-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--navy-primary);
+    margin-bottom: 4px;
+}
+
+.privacy-feature-card .privacy-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.privacy-tip-box {
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    margin-top: 18px;
+    font-size: 0.85rem;
+    color: #92400e;
+    line-height: 1.45;
+}
+
+/* ==========================================================================
+   Interactive Tutorial / Guide Modal Styling
+   ========================================================================== */
+
+.tutorial-progress-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding: 0 8px;
+}
+
+.tutorial-step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+    transition: var(--transition);
+}
+
+.tutorial-step-indicator .step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    border: 2px solid #cbd5e1;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+.tutorial-step-indicator .step-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+
+.tutorial-step-indicator.active .step-num {
+    background: var(--blue-accent);
+    border-color: var(--navy-primary);
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 126, 168, 0.25);
+}
+
+.tutorial-step-indicator.active .step-label {
+    color: var(--navy-primary);
+    font-weight: 700;
+}
+
+.tutorial-step-indicator.completed .step-num {
+    background: var(--status-success);
+    border-color: var(--status-success);
+    color: #ffffff;
+}
+
+.tutorial-step-indicator.completed .step-label {
+    color: var(--status-success);
+}
+
+.tutorial-progress-line {
+    flex: 1;
+    height: 2px;
+    background: #e2e8f0;
+    margin: 0 6px;
+    margin-bottom: 22px;
+}
+
+.tutorial-slide {
+    display: none;
+    animation: fadeInTutorial 0.25s ease-in-out;
+}
+
+.tutorial-slide.active {
+    display: block;
+}
+
+@keyframes fadeInTutorial {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tutorial-hero {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.tutorial-hero-icon {
+    font-size: 2.2rem;
+    margin-bottom: 6px;
+}
+
+.tutorial-hero h4 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--navy-primary);
+    margin-bottom: 6px;
+}
+
+.tutorial-hero-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    max-width: 620px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+
+.tutorial-formula-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 18px 12px;
+    margin-bottom: 18px;
+}
+
+.formula-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    min-width: 120px;
+    box-shadow: var(--shadow-sm);
+}
+
+.formula-step.formula-result {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-color: #0284c7;
+}
+
+.formula-badge {
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+.formula-badge.result-badge {
+    color: #0369a1;
+}
+
+.formula-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--navy-primary);
+}
+
+.formula-text.highlight {
+    color: #0369a1;
+}
+
+.formula-op {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-light);
+}
+
+.tutorial-insight-box {
+    background: var(--blue-subtle);
+    border-left: 4px solid var(--blue-accent);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--navy-dark);
+    line-height: 1.5;
+    margin-top: 12px;
+}
+
+.tutorial-scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.scenario-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: var(--shadow-sm);
+}
+
+.scenario-card.highlight-card {
+    border-color: var(--blue-accent);
+    background: #f0f9ff;
+    box-shadow: 0 0 0 1px var(--blue-accent), var(--shadow-sm);
+}
+
+.scenario-day {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--navy-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 4px;
+}
+
+.scenario-budget {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.scenario-spent {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.scenario-accum {
+    font-size: 0.85rem;
+    font-weight: 800;
+    margin-top: auto;
+    padding-top: 6px;
+}
+
+.tutorial-grid-2col {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.tutorial-card-item {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tutorial-card-item .t-icon {
+    font-size: 1.3rem;
+    margin-bottom: 2px;
+}
+
+.tutorial-card-item .t-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--navy-primary);
+}
+
+.tutorial-card-item .t-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.tutorial-funds-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.fund-card-item {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.fund-card-item .fund-icon {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}
+
+.fund-card-item .fund-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--navy-primary);
+    margin-bottom: 4px;
+}
+
+.fund-card-item .fund-desc {
+    font-size: 0.775rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.tutorial-cta-box {
+    text-align: center;
+    padding: 18px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: var(--radius-md);
+    margin-top: 14px;
+}
+
+@media (max-width: 768px) {
+    .privacy-features-grid,
+    .tutorial-grid-2col,
+    .tutorial-scenario-grid,
+    .tutorial-funds-row {
+        grid-template-columns: 1fr;
+    }
+
+    .tutorial-step-indicator .step-label {
+        display: none;
+    }
+}
+

@@ -4,6 +4,24 @@ Tots els canvis notables en aquest projecte es documenten en aquest fitxer.
 
 El format es basa en [Keep a Changelog](https://keepachangelog.com/ca/1.0.0/) i aquest projecte segueix [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-09-12
+
+### ✨ Noves Funcionalitats
+- **Avís i Filosofia de Privacitat Local-First (`#modalPrivacy`)**:
+  - Explicació clara i visible a la capçalera (`🔒 100% Privat`) i a l'assistent inicial que l'aplicació funciona 100% en local mitjançant WebAssembly (Rust).
+  - Zero servidors externs, zero rastrejadors i zero galetes de seguiment.
+  - Custòdia total de dades en mans de l'usuari mitjançant emmagatzematge `localStorage` i funcionalitat d'exportació/importació en fitxers JSON de seguretat.
+- **Tutorial Interactiu Pas a Pas (`#modalTutorial`)**:
+  - Guia interactiva en 5 passos amb accés des de la capçalera (`🎓 Com Funciona?`) i l'assistent.
+  - **Pas 1 (Límit Diari Net)**: Del sou net mensual al pressupost diari real després de deduir despeses fixes i repartir per dies de cicle.
+  - **Pas 2 (Saldo Acumulat)**: Explicació de l'acumulació diària amb l'exemple visual de 15 €/dia d'oci acumulat fins al sopar de 35 € de dimecres sense generar deute.
+  - **Pas 3 (Calendari i Dates Reals)**: Navegació de dies, registre de despeses passades i planificació futura.
+  - **Pas 4 (Tancament de Mes)**: Liquidació de superàvits als fons d'Emergència, Objectius i Inversió.
+  - **Pas 5 (Privacitat i Còpies)**: Recomanacions de seguretat i còpia de resguard.
+  - Navegació àgil amb botons Anterior/Següent i selector per passos directe.
+
+---
+
 ## [0.4.0] - 2026-09-12
 
 ### ✨ Noves Funcionalitats

@@ -27,6 +27,10 @@
                     <div class="brand-icon">🏛️</div>
                     <h2>Gestor de Finances Personals</h2>
                     <p class="subtitle">Pas 1 de 2: Configuració inicial del Sou Net i Partides Pressupostàries</p>
+                    <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; margin-bottom: 4px;">
+                        <button type="button" class="btn btn-outline btn-sm" id="btnOnboardTutorial">🎓 Com Funciona l'App?</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="btnOnboardPrivacy">🔒 100% Local & Privat</button>
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-top: 10px;">
@@ -182,6 +186,12 @@
                         </div>
                     </div>
 
+                    <button class="btn btn-secondary btn-sm" id="btnHeaderPrivacy" title="Privacitat Total & Custòdia Local de Dades">
+                        🔒 100% Privat
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btnHeaderTutorial" title="Guia Interactiva: Com funciona el Gestor de Finances">
+                        🎓 Com Funciona?
+                    </button>
                     <button class="btn btn-secondary btn-sm" id="btnHeaderExport" title="Exportar còpia de seguretat en fitxer JSON">
                         💾 Exportar (.json)
                     </button>
@@ -519,6 +529,279 @@
                         🗑️ Esborrar Totes les Dades
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Privacy & Local-First Custody -->
+    <div class="modal-backdrop" id="modalPrivacy">
+        <div class="modal-card modal-md">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5rem;">🔒</span>
+                    <div>
+                        <h3 style="margin: 0;">Privacitat Total & Custòdia de Dades</h3>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Arquitectura 100% Local-First. Zero servidors externs.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" id="btnClosePrivacyModal" title="Tancar">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <div class="privacy-banner">
+                    <div class="privacy-badge">🛡️ Execució 100% al teu navegador</div>
+                    <h4 style="font-size: 1.05rem; color: var(--navy-primary); margin: 8px 0 6px 0; font-weight: 700;">Les teves finances són estrictament privades</h4>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5;">Aquesta aplicació funciona completament en local mitjançant un motor financer compilat en <strong>WebAssembly (Rust)</strong>. <strong>No guardem ni transmetem cap dada a cap servidor extern</strong>, ni fem servir galetes (cookies) de seguiment ni telemetria.</p>
+                </div>
+
+                <div class="privacy-features-grid">
+                    <div class="privacy-feature-card">
+                        <div class="privacy-icon">💻</div>
+                        <div>
+                            <div class="privacy-title">Emmagatzematge Local</div>
+                            <div class="privacy-desc">El teu sou, partides, despeses i configuracions es desen únicament al <code>localStorage</code> del teu navegador web.</div>
+                        </div>
+                    </div>
+                    <div class="privacy-feature-card">
+                        <div class="privacy-icon">💾</div>
+                        <div>
+                            <div class="privacy-title">Còpies de Seguretat en JSON</div>
+                            <div class="privacy-desc">Pots exportar un fitxer <code>.json</code> complet en qualsevol moment fent clic al botó <strong>Exportar (.json)</strong> de la capçalera.</div>
+                        </div>
+                    </div>
+                    <div class="privacy-feature-card">
+                        <div class="privacy-icon">📂</div>
+                        <div>
+                            <div class="privacy-title">Restauració i Portabilitat</div>
+                            <div class="privacy-desc">Per canviar de dispositiu o restaurar el teu historial, només has d'importar el fitxer <code>.json</code> i continuaràs exactament on eres.</div>
+                        </div>
+                    </div>
+                    <div class="privacy-feature-card">
+                        <div class="privacy-icon">⚖️</div>
+                        <div>
+                            <div class="privacy-title">Custòdia i Responsabilitat</div>
+                            <div class="privacy-desc">Com que no hi ha cap base de dades al núvol, la responsabilitat de custodiar i fer còpies periòdiques recau 100% en la persona usuària.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="privacy-tip-box">
+                    💡 <strong>Bona pràctica:</strong> Fes una descàrrega de la teva còpia JSON un cop al mes o després de canvis importants per tenir sempre un resguard segur al teu ordinador o disc extern.
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnPrivacyExport">💾 Descarregar Còpia JSON Ara</button>
+                <button type="button" class="btn btn-primary" id="btnGotItPrivacy">D'acord, entès!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Interactive Tutorial / Guide -->
+    <div class="modal-backdrop" id="modalTutorial">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5rem;">🎓</span>
+                    <div>
+                        <h3 style="margin: 0;">Com Funciona el Gestor de Finances?</h3>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Guia interactiva pas a pas: filosofia de control i saldos acumulats</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" id="btnCloseTutorialModal" title="Tancar">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- Step progress dots -->
+                <div class="tutorial-progress-bar">
+                    <div class="tutorial-step-indicator active" data-step="1">
+                        <span class="step-num">1</span>
+                        <span class="step-label">Límit Diari</span>
+                    </div>
+                    <div class="tutorial-progress-line"></div>
+                    <div class="tutorial-step-indicator" data-step="2">
+                        <span class="step-num">2</span>
+                        <span class="step-label">Saldo Acumulat</span>
+                    </div>
+                    <div class="tutorial-progress-line"></div>
+                    <div class="tutorial-step-indicator" data-step="3">
+                        <span class="step-num">3</span>
+                        <span class="step-label">Calendari i Dates</span>
+                    </div>
+                    <div class="tutorial-progress-line"></div>
+                    <div class="tutorial-step-indicator" data-step="4">
+                        <span class="step-num">4</span>
+                        <span class="step-label">Tancament de Mes</span>
+                    </div>
+                    <div class="tutorial-progress-line"></div>
+                    <div class="tutorial-step-indicator" data-step="5">
+                        <span class="step-num">5</span>
+                        <span class="step-label">Privacitat</span>
+                    </div>
+                </div>
+
+                <!-- Slide 1: Sou -> Despeses Fixes -> Límit Diari Net -->
+                <div class="tutorial-slide active" id="tutSlide1">
+                    <div class="tutorial-hero">
+                        <div class="tutorial-hero-icon">📊</div>
+                        <h4>Pas 1: Del Sou Mensual al teu Límit Diari Net</h4>
+                        <p class="tutorial-hero-desc">L'objectiu no és només saber quant gastes, sinó saber <strong>quant pots gastar cada dia exactament</strong> sense posar en risc els teus pagaments fixos ni el teu estalvi.</p>
+                    </div>
+                    
+                    <div class="tutorial-formula-card">
+                        <div class="formula-step">
+                            <span class="formula-badge">1. Sou Net</span>
+                            <span class="formula-text">Ex: 1.323,00 € / mes</span>
+                        </div>
+                        <div class="formula-op">➖</div>
+                        <div class="formula-step">
+                            <span class="formula-badge">2. Despeses Fixes</span>
+                            <span class="formula-text">Gimnàs, Assegurances...</span>
+                        </div>
+                        <div class="formula-op">➗</div>
+                        <div class="formula-step">
+                            <span class="formula-badge">3. Dies del Cicle (30)</span>
+                            <span class="formula-text">Distribució diària</span>
+                        </div>
+                        <div class="formula-op">🟰</div>
+                        <div class="formula-step formula-result">
+                            <span class="formula-badge result-badge">Límit Diari Net</span>
+                            <span class="formula-text highlight">Disponible Real Diari</span>
+                        </div>
+                    </div>
+
+                    <div class="tutorial-insight-box">
+                        💡 <strong>Com funciona:</strong> Si assignes el 20% a <em>Oci i Restauració</em> (264,60 €/mes), l'aplicació calcula que disposes de <strong>8,82 € cada dia</strong> lliures per a aquesta partida.
+                    </div>
+                </div>
+
+                <!-- Slide 2: La Màgia del Saldo Acumulat -->
+                <div class="tutorial-slide" id="tutSlide2">
+                    <div class="tutorial-hero">
+                        <div class="tutorial-hero-icon">✨</div>
+                        <h4>Pas 2: La Màgia del Saldo Acumulat</h4>
+                        <p class="tutorial-hero-desc">El pressupost diari no es perd si no el gastes! Es va <strong>acumulant dia a dia</strong> dins del cicle mensual.</p>
+                    </div>
+
+                    <div class="tutorial-scenario-grid">
+                        <div class="scenario-card">
+                            <div class="scenario-day">Dilluns (Dia 1)</div>
+                            <div class="scenario-budget">+15,00 € assignats</div>
+                            <div class="scenario-spent">Despesa: 0,00 €</div>
+                            <div class="scenario-accum text-success">Saldo Acumulat: +15,00 €</div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="scenario-day">Dimarts (Dia 2)</div>
+                            <div class="scenario-budget">+15,00 € assignats</div>
+                            <div class="scenario-spent">Despesa: 0,00 €</div>
+                            <div class="scenario-accum text-success">Saldo Acumulat: +30,00 €</div>
+                        </div>
+                        <div class="scenario-card highlight-card">
+                            <div class="scenario-day">Dimecres (Dia 3)</div>
+                            <div class="scenario-budget">+15,00 € assignats</div>
+                            <div class="scenario-spent" style="color: var(--navy-primary); font-weight: 700;">🍽️ Sopar amb amics: 35,00 €</div>
+                            <div class="scenario-accum text-success">Saldo Final: +10,00 € (Sense deute!)</div>
+                        </div>
+                    </div>
+
+                    <div class="tutorial-insight-box">
+                        🎯 <strong>Llibertat sense culpa:</strong> Com que havies acumulat 45,00 € en 3 dies, el sopar de 35,00 € queda cobert íntegrament i encara et queden 10,00 € positius. Sabràs sempre si pots pagar un caprici sense sortir-te del pressupost!
+                    </div>
+                </div>
+
+                <!-- Slide 3: Calendari Real i Gestió Temporal -->
+                <div class="tutorial-slide" id="tutSlide3">
+                    <div class="tutorial-hero">
+                        <div class="tutorial-hero-icon">📅</div>
+                        <h4>Pas 3: Calendari Real i Navegació Temporal</h4>
+                        <p class="tutorial-hero-desc">Gestiona les despeses en dates reals amb el calendari integrat.</p>
+                    </div>
+
+                    <div class="tutorial-grid-2col">
+                        <div class="tutorial-card-item">
+                            <div class="t-icon">◀ 📅 ▶</div>
+                            <div class="t-title">Navegació Àgil de Dies</div>
+                            <div class="t-desc">Usa els botons <strong>◀</strong> i <strong>▶</strong> per revisar dies passats o futurs. Prem directament la caixa de data per obrir el <strong>selector de calendari</strong> o el botó <strong>Avui</strong> per tornar a la data actual.</div>
+                        </div>
+                        <div class="tutorial-card-item">
+                            <div class="t-icon">⏮️</div>
+                            <div class="t-title">Despeses Passades i Oblits</div>
+                            <div class="t-desc">T'has descuidat d'anotar un tiquet de fa tres dies? Cap problema! Canvia la data o indica-la en el formulari: el sistema <strong>recalcularà retroactivament</strong> els saldos acumulats de forma exacta.</div>
+                        </div>
+                        <div class="tutorial-card-item">
+                            <div class="t-icon">🔮</div>
+                            <div class="t-title">Planificació de Despeses Futures</div>
+                            <div class="t-desc">Pots programar una compra prevista a final de mes. L'aplicació la registrarà per a aquell dia sense distorsionar el saldo diari actual.</div>
+                        </div>
+                        <div class="tutorial-card-item">
+                            <div class="t-icon">🔘</div>
+                            <div class="t-title">Assignació Obligatòria per Botons</div>
+                            <div class="t-desc">Quan registris una despesa, selecciona la categoria prement el seu botó visual per evitar errors accidentals d'assignació.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 4: Tancament de Mes i Fons de Reserva -->
+                <div class="tutorial-slide" id="tutSlide4">
+                    <div class="tutorial-hero">
+                        <div class="tutorial-hero-icon">🏦</div>
+                        <h4>Pas 4: Tancament de Mes i Fons de Reserva</h4>
+                        <p class="tutorial-hero-desc">Quan s'acaba el mes, què passa amb els diners no gastats? No es perden!</p>
+                    </div>
+
+                    <div class="tutorial-funds-row">
+                        <div class="fund-card-item">
+                            <div class="fund-icon">🛡️</div>
+                            <div class="fund-title">Fons d'Emergència</div>
+                            <div class="fund-desc">Coixí de seguretat (3-6 mesos) per a imprevistos mèdics o de la llar.</div>
+                        </div>
+                        <div class="fund-card-item">
+                            <div class="fund-icon">🎯</div>
+                            <div class="fund-title">Fons d'Objectius</div>
+                            <div class="fund-desc">Estalvi per a viatges, formació, compres importants o projectes.</div>
+                        </div>
+                        <div class="fund-card-item">
+                            <div class="fund-icon">📈</div>
+                            <div class="fund-title">Fons d'Inversió</div>
+                            <div class="fund-desc">Patrimoni a llarg termini (fons indexats, plans de futur, creixement).</div>
+                        </div>
+                    </div>
+
+                    <div class="tutorial-insight-box">
+                        🔄 <strong>Liquidació automàtica:</strong> L'últim dia del teu cicle de facturació (per defecte el dia 1 o el que triïs a Configuració ⚙️), l'aplicació et permet transferir els superàvits acumulats a aquests 3 fons per fer créixer el teu patrimoni.
+                    </div>
+                </div>
+
+                <!-- Slide 5: Privacitat i Còpies de Seguretat JSON -->
+                <div class="tutorial-slide" id="tutSlide5">
+                    <div class="tutorial-hero">
+                        <div class="tutorial-hero-icon">🔒</div>
+                        <h4>Pas 5: Les teves dades són teves (Local-First)</h4>
+                        <p class="tutorial-hero-desc">Gaudix de la màxima tranquil·litat: zero servidors, zero rastreig.</p>
+                    </div>
+
+                    <div class="tutorial-grid-2col">
+                        <div class="tutorial-card-item">
+                            <div class="t-icon">🛡️</div>
+                            <div class="t-title">100% Privat al Navegador</div>
+                            <div class="t-desc">Totes les xifres es processen en WebAssembly i es guarden al teu <code>localStorage</code>. Ningú més hi té accés.</div>
+                        </div>
+                        <div class="tutorial-card-item">
+                            <div class="t-icon">💾</div>
+                            <div class="t-title">Còpies JSON en 1 Clic</div>
+                            <div class="t-desc">Usa el botó <strong>Exportar (.json)</strong> per desar una còpia al teu ordinador o disc extern i <strong>Importar (.json)</strong> per recuperar-la quan vulguis.</div>
+                        </div>
+                    </div>
+
+                    <div class="tutorial-cta-box">
+                        <div style="font-size: 1.15rem; font-weight: 800; color: var(--navy-primary); margin-bottom: 4px;">Tot a punt per començar! 🚀</div>
+                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Configura el teu sou net i pren el control total de la teva economia diària.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carousel navigation footer -->
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn btn-outline" id="btnTutPrev" style="visibility: hidden;">⬅️ Anterior</button>
+                <div class="tutorial-step-counter" id="tutStepCounter" style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">Pas 1 de 5</div>
+                <button type="button" class="btn btn-primary" id="btnTutNext">Següent ➡️</button>
             </div>
         </div>
     </div>

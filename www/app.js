@@ -700,6 +700,76 @@ export function deleteRecurring(id) {
     }
 }
 
+// ==========================================================================
+// Interactive Tutorial / Guide Controller
+// ==========================================================================
+let currentTutorialStep = 1;
+const TOTAL_TUTORIAL_STEPS = 5;
+
+export function showTutorialStep(stepNum) {
+    currentTutorialStep = Math.max(1, Math.min(TOTAL_TUTORIAL_STEPS, stepNum));
+    
+    // Update slide visibility
+    for (let i = 1; i <= TOTAL_TUTORIAL_STEPS; i++) {
+        const slide = document.getElementById(`tutSlide${i}`);
+        if (slide) {
+            slide.classList.toggle('active', i === currentTutorialStep);
+        }
+    }
+
+    // Update progress indicator dots
+    document.querySelectorAll('.tutorial-step-indicator').forEach(ind => {
+        const s = parseInt(ind.getAttribute('data-step'), 10);
+        ind.classList.remove('active', 'completed');
+        if (s === currentTutorialStep) {
+            ind.classList.add('active');
+        } else if (s < currentTutorialStep) {
+            ind.classList.add('completed');
+        }
+    });
+
+    // Update step counter text
+    const counter = document.getElementById('tutStepCounter');
+    if (counter) {
+        counter.textContent = `Pas ${currentTutorialStep} de ${TOTAL_TUTORIAL_STEPS}`;
+    }
+
+    // Update navigation buttons
+    const btnPrev = document.getElementById('btnTutPrev');
+    if (btnPrev) {
+        btnPrev.style.visibility = currentTutorialStep === 1 ? 'hidden' : 'visible';
+    }
+
+    const btnNext = document.getElementById('btnTutNext');
+    if (btnNext) {
+        btnNext.textContent = currentTutorialStep === TOTAL_TUTORIAL_STEPS ? 'Començar! 🚀' : 'Següent ➡️';
+    }
+}
+
+export function openTutorial(startStep = 1) {
+    showTutorialStep(startStep);
+    const modal = document.getElementById('modalTutorial');
+    if (modal) modal.classList.add('active');
+}
+
+export function closeTutorial() {
+    const modal = document.getElementById('modalTutorial');
+    if (modal) modal.classList.remove('active');
+}
+
+// ==========================================================================
+// Privacy & Data Custody Controller
+// ==========================================================================
+export function openPrivacyModal() {
+    const modal = document.getElementById('modalPrivacy');
+    if (modal) modal.classList.add('active');
+}
+
+export function closePrivacyModal() {
+    const modal = document.getElementById('modalPrivacy');
+    if (modal) modal.classList.remove('active');
+}
+
 function closeAllModals() {
     document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('active'));
 }
@@ -711,6 +781,10 @@ window.deleteExpense = deleteExpense;
 window.editRecurring = editRecurring;
 window.deleteRecurring = deleteRecurring;
 window.selectDateDirectly = selectDateDirectly;
+window.openTutorial = openTutorial;
+window.closeTutorial = closeTutorial;
+window.openPrivacyModal = openPrivacyModal;
+window.closePrivacyModal = closePrivacyModal;
 
 // ==========================================================================
 // Event Listeners & Application Bootstrapping
@@ -910,6 +984,72 @@ async function bootstrap() {
         });
         document.getElementById('btnCloseConfigModal').addEventListener('click', () => {
             document.getElementById('modalConfig').classList.remove('active');
+        });
+
+        // Privacy & Tutorial Modal Handlers
+        const btnHeaderPrivacy = document.getElementById('btnHeaderPrivacy');
+        if (btnHeaderPrivacy) btnHeaderPrivacy.addEventListener('click', openPrivacyModal);
+
+        const btnOnboardPrivacy = document.getElementById('btnOnboardPrivacy');
+        if (btnOnboardPrivacy) btnOnboardPrivacy.addEventListener('click', openPrivacyModal);
+
+        const btnClosePrivacyModal = document.getElementById('btnClosePrivacyModal');
+        if (btnClosePrivacyModal) btnClosePrivacyModal.addEventListener('click', closePrivacyModal);
+
+        const btnGotItPrivacy = document.getElementById('btnGotItPrivacy');
+        if (btnGotItPrivacy) btnGotItPrivacy.addEventListener('click', closePrivacyModal);
+
+        const btnPrivacyExport = document.getElementById('btnPrivacyExport');
+        if (btnPrivacyExport) btnPrivacyExport.addEventListener('click', () => {
+            exportStateToFile();
+            closePrivacyModal();
+        });
+
+        const btnHeaderTutorial = document.getElementById('btnHeaderTutorial');
+        if (btnHeaderTutorial) btnHeaderTutorial.addEventListener('click', () => openTutorial(1));
+
+        const btnOnboardTutorial = document.getElementById('btnOnboardTutorial');
+        if (btnOnboardTutorial) btnOnboardTutorial.addEventListener('click', () => openTutorial(1));
+
+        const btnCloseTutorialModal = document.getElementById('btnCloseTutorialModal');
+        if (btnCloseTutorialModal) btnCloseTutorialModal.addEventListener('click', closeTutorial);
+
+        const btnTutPrev = document.getElementById('btnTutPrev');
+        if (btnTutPrev) {
+            btnTutPrev.addEventListener('click', () => {
+                if (currentTutorialStep > 1) {
+                    showTutorialStep(currentTutorialStep - 1);
+                }
+            });
+        }
+
+        const btnTutNext = document.getElementById('btnTutNext');
+        if (btnTutNext) {
+            btnTutNext.addEventListener('click', () => {
+                if (currentTutorialStep < TOTAL_TUTORIAL_STEPS) {
+                    showTutorialStep(currentTutorialStep + 1);
+                } else {
+                    closeTutorial();
+                }
+            });
+        }
+
+        document.querySelectorAll('.tutorial-step-indicator').forEach(ind => {
+            ind.addEventListener('click', () => {
+                const s = parseInt(ind.getAttribute('data-step'), 10);
+                if (!isNaN(s)) {
+                    showTutorialStep(s);
+                }
+            });
+        });
+
+        // Close modal on backdrop click
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+            backdrop.addEventListener('click', (e) => {
+                if (e.target === backdrop) {
+                    backdrop.classList.remove('active');
+                }
+            });
         });
 
         // Save Expense Form Submit (Validation for category selection & dd/mm/aaaa date)
