@@ -39,7 +39,7 @@ function getCleanDefaultState() {
         monthly_income: 1323.00,
         days_in_month: 30,
         current_day: 1,
-        setup_completed: false,
+        setup_completed: true,
         categories: [],
         recurring_expenses: [],
         daily_expenses: [],

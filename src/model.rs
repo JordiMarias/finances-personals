@@ -104,7 +104,7 @@ impl Default for BudgetConfig {
             monthly_income: 1323.0,
             days_in_month: 30,
             current_day: 1,
-            setup_completed: false,
+            setup_completed: true,
             categories: vec![
                 Category {
                     id: "housing".into(),
