@@ -16,6 +16,14 @@ pub struct SettleMonthResult {
     pub settlement: MonthSettlement,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct CycleInfo {
+    pub cycle_start_date: String,
+    pub cycle_end_date: String,
+    pub total_cycle_days: u32,
+    pub day_of_cycle: u32,
+}
+
 #[wasm_bindgen]
 pub fn wasm_get_default_config() -> String {
     let config = BudgetConfig::default();
@@ -33,9 +41,42 @@ pub fn wasm_get_all_summaries(config_json: &str) -> String {
 }
 
 #[wasm_bindgen]
+pub fn wasm_get_summaries_for_date(config_json: &str, target_date: &str) -> String {
+    if let Ok(config) = StorageManager::from_json(config_json) {
+        let summaries = BudgetEngine::get_all_summaries_for_date(&config, target_date);
+        serde_json::to_string(&summaries).unwrap_or_default()
+    } else {
+        "[]".to_string()
+    }
+}
+
+#[wasm_bindgen]
+pub fn wasm_get_cycle_info(target_date: &str, billing_start_day: u32) -> String {
+    let (cycle_start_date, cycle_end_date, total_cycle_days, day_of_cycle) =
+        BudgetEngine::get_cycle_range(target_date, billing_start_day);
+    let info = CycleInfo {
+        cycle_start_date,
+        cycle_end_date,
+        total_cycle_days,
+        day_of_cycle,
+    };
+    serde_json::to_string(&info).unwrap_or_default()
+}
+
+#[wasm_bindgen]
+pub fn wasm_update_billing_cycle_day(config_json: &str, start_day: u32) -> String {
+    if let Ok(mut config) = StorageManager::from_json(config_json) {
+        config.billing_cycle_start_day = start_day.clamp(1, 28);
+        StorageManager::to_json(&config).unwrap_or_default()
+    } else {
+        config_json.to_string()
+    }
+}
+
+#[wasm_bindgen]
 pub fn wasm_add_expense(config_json: &str, category_id: &str, amount: f64, note: &str, date: &str) -> String {
     if let Ok(mut config) = StorageManager::from_json(config_json) {
-        let new_id = format!("exp_{}", config.daily_expenses.len() + 1);
+        let new_id = format!("exp_{}_{}", date.replace('-', ""), config.daily_expenses.len() + 1);
         let new_expense = DailyExpense {
             id: new_id,
             date: date.to_string(),

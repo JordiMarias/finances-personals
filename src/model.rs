@@ -70,6 +70,12 @@ pub struct CategorySummary {
     pub net_daily_budget: f64,
     pub accumulated_balance: f64,
     pub spent_this_month: f64,
+    pub spent_today: f64,
+    pub cycle_start_date: String,
+    pub cycle_end_date: String,
+    pub day_of_cycle: u32,
+    pub total_cycle_days: u32,
+    pub target_date: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,6 +102,12 @@ pub struct BudgetConfig {
     pub emergency_fund_total: f64,
     pub goal_fund_total: f64,
     pub investment_fund_total: f64,
+    #[serde(default = "default_billing_cycle_start_day")]
+    pub billing_cycle_start_day: u32,
+}
+
+fn default_billing_cycle_start_day() -> u32 {
+    1
 }
 
 impl Default for BudgetConfig {
@@ -160,6 +172,7 @@ impl Default for BudgetConfig {
             emergency_fund_total: 0.0,
             goal_fund_total: 0.0,
             investment_fund_total: 0.0,
+            billing_cycle_start_day: 1,
         }
     }
 }

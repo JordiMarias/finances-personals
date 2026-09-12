@@ -3,10 +3,104 @@ use crate::model::*;
 pub struct BudgetEngine;
 
 impl BudgetEngine {
-    /// Calculate summary statistics for a given category based on current config
-    pub fn calculate_category_summary(config: &BudgetConfig, cat: &Category) -> CategorySummary {
+    /// Determines if a year is a leap year
+    pub fn is_leap_year(year: i32) -> bool {
+        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    }
+
+    /// Returns the number of days in a given year and month
+    pub fn days_in_month(year: i32, month: u32) -> u32 {
+        match month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 => if Self::is_leap_year(year) { 29 } else { 28 },
+            _ => 30,
+        }
+    }
+
+    /// Parses a YYYY-MM-DD date string
+    pub fn parse_date(date_str: &str) -> Option<(i32, u32, u32)> {
+        let parts: Vec<&str> = date_str.split('-').collect();
+        if parts.len() == 3 {
+            let y: i32 = parts[0].parse().ok()?;
+            let m: u32 = parts[1].parse().ok()?;
+            let d: u32 = parts[2].parse().ok()?;
+            if (1..=12).contains(&m) && (1..=31).contains(&d) {
+                return Some((y, m, d));
+            }
+        }
+        None
+    }
+
+    /// Formats year, month, day into YYYY-MM-DD
+    pub fn format_date(year: i32, month: u32, day: u32) -> String {
+        format!("{:04}-{:02}-{:02}", year, month, day)
+    }
+
+    /// Converts a Gregorian date into an absolute day count (Rata Die)
+    pub fn date_to_days(year: i32, month: u32, day: u32) -> i64 {
+        let y = year as i64;
+        let m = month as i64;
+        let d = day as i64;
+        let (y_adj, m_adj) = if m <= 2 { (y - 1, m + 12) } else { (y, m) };
+        365 * y_adj + y_adj / 4 - y_adj / 100 + y_adj / 400 + (153 * (m_adj + 1)) / 5 + d - 306
+    }
+
+    /// Returns the number of days between two YYYY-MM-DD dates (d2 - d1)
+    pub fn days_between(d1: &str, d2: &str) -> i64 {
+        if let (Some((y1, m1, day1)), Some((y2, m2, day2))) = (Self::parse_date(d1), Self::parse_date(d2)) {
+            Self::date_to_days(y2, m2, day2) - Self::date_to_days(y1, m1, day1)
+        } else {
+            0
+        }
+    }
+
+    /// Calculates the billing cycle range (cycle_start, cycle_end, total_cycle_days, day_of_cycle)
+    /// for any given date and billing cycle start day (1..=28).
+    pub fn get_cycle_range(date_str: &str, billing_start_day: u32) -> (String, String, u32, u32) {
+        let start_day = billing_start_day.clamp(1, 28);
+        let (y, m, d) = Self::parse_date(date_str).unwrap_or((2026, 9, 12));
+
+        let (cycle_start, cycle_end) = if start_day == 1 {
+            let total_m_days = Self::days_in_month(y, m);
+            (Self::format_date(y, m, 1), Self::format_date(y, m, total_m_days))
+        } else if d >= start_day {
+            // Cycle starts this month on start_day, ends next month on start_day - 1
+            let (next_y, next_m) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
+            let end_day = start_day - 1;
+            (
+                Self::format_date(y, m, start_day),
+                Self::format_date(next_y, next_m, end_day),
+            )
+        } else {
+            // Cycle started last month on start_day, ends this month on start_day - 1
+            let (prev_y, prev_m) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
+            let max_prev_days = Self::days_in_month(prev_y, prev_m);
+            let actual_start_day = start_day.min(max_prev_days);
+            let end_day = start_day - 1;
+            (
+                Self::format_date(prev_y, prev_m, actual_start_day),
+                Self::format_date(y, m, end_day),
+            )
+        };
+
+        let total_days = (Self::days_between(&cycle_start, &cycle_end) + 1).max(1) as u32;
+        let day_of_cycle = (Self::days_between(&cycle_start, date_str) + 1).clamp(1, total_days as i64) as u32;
+
+        (cycle_start, cycle_end, total_days, day_of_cycle)
+    }
+
+    /// Calculate summary for a specific category at a target date
+    pub fn calculate_category_summary_for_date(
+        config: &BudgetConfig,
+        cat: &Category,
+        target_date: &str,
+    ) -> CategorySummary {
+        let (cycle_start, cycle_end, total_cycle_days, day_of_cycle) =
+            Self::get_cycle_range(target_date, config.billing_cycle_start_day);
+
         let gross_monthly_budget = config.monthly_income * cat.percentage;
-        
+
         let recurring_monthly_cost: f64 = config
             .recurring_expenses
             .iter()
@@ -15,21 +109,46 @@ impl BudgetEngine {
             .sum();
 
         let net_monthly_budget = gross_monthly_budget - recurring_monthly_cost;
-        let days_f = config.days_in_month as f64;
+        let days_f = total_cycle_days as f64;
 
         let gross_daily_budget = gross_monthly_budget / days_f;
         let recurring_daily_cost = recurring_monthly_cost / days_f;
         let net_daily_budget = net_monthly_budget / days_f;
 
+        // Total spent within the entire cycle
         let spent_this_month: f64 = config
             .daily_expenses
             .iter()
-            .filter(|exp| exp.category_id == cat.id)
+            .filter(|exp| {
+                exp.category_id == cat.id
+                    && exp.date.as_str() >= cycle_start.as_str()
+                    && exp.date.as_str() <= cycle_end.as_str()
+            })
             .map(|exp| exp.amount)
             .sum();
 
-        let current_day_f = config.current_day as f64;
-        let accumulated_balance = (net_daily_budget * current_day_f) - spent_this_month;
+        // Total spent specifically on the target date
+        let spent_today: f64 = config
+            .daily_expenses
+            .iter()
+            .filter(|exp| exp.category_id == cat.id && exp.date == target_date)
+            .map(|exp| exp.amount)
+            .sum();
+
+        // Total spent in this cycle up to the target date
+        let spent_up_to_target: f64 = config
+            .daily_expenses
+            .iter()
+            .filter(|exp| {
+                exp.category_id == cat.id
+                    && exp.date.as_str() >= cycle_start.as_str()
+                    && exp.date.as_str() <= target_date
+            })
+            .map(|exp| exp.amount)
+            .sum();
+
+        // Accumulated balance accrued up to this day in the cycle
+        let accumulated_balance = (net_daily_budget * day_of_cycle as f64) - spent_up_to_target;
 
         CategorySummary {
             category: cat.clone(),
@@ -41,16 +160,34 @@ impl BudgetEngine {
             net_daily_budget,
             accumulated_balance,
             spent_this_month,
+            spent_today,
+            cycle_start_date: cycle_start,
+            cycle_end_date: cycle_end,
+            day_of_cycle,
+            total_cycle_days,
+            target_date: target_date.to_string(),
         }
     }
 
-    /// Returns summaries for all categories in the configuration
-    pub fn get_all_summaries(config: &BudgetConfig) -> Vec<CategorySummary> {
+    /// Calculate summary statistics for a given category (default legacy signature)
+    pub fn calculate_category_summary(config: &BudgetConfig, cat: &Category) -> CategorySummary {
+        let target_date = format!("2026-09-{:02}", config.current_day.clamp(1, 30));
+        Self::calculate_category_summary_for_date(config, cat, &target_date)
+    }
+
+    /// Returns summaries for all categories for a specific date
+    pub fn get_all_summaries_for_date(config: &BudgetConfig, target_date: &str) -> Vec<CategorySummary> {
         config
             .categories
             .iter()
-            .map(|cat| Self::calculate_category_summary(config, cat))
+            .map(|cat| Self::calculate_category_summary_for_date(config, cat, target_date))
             .collect()
+    }
+
+    /// Returns summaries for all categories (default legacy signature)
+    pub fn get_all_summaries(config: &BudgetConfig) -> Vec<CategorySummary> {
+        let target_date = format!("2026-09-{:02}", config.current_day.clamp(1, 30));
+        Self::get_all_summaries_for_date(config, &target_date)
     }
 
     /// Add a new daily expense
@@ -119,7 +256,6 @@ impl BudgetEngine {
                     }
                 }
                 FundType::Investment => {
-                    // Investment budget goes directly to investment fund
                     invested += summary.gross_monthly_budget;
                 }
             }
@@ -140,10 +276,7 @@ impl BudgetEngine {
             deficits_count: deficits,
         };
 
-        // Reset for new month
         config.current_day = 1;
-        config.daily_expenses.clear();
-
         settlement
     }
 }

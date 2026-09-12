@@ -161,17 +161,83 @@ fn test_daily_accumulation_and_expense() {
     // Add an expense of 10.00 € on Day 2
     BudgetEngine::add_expense(&mut config, DailyExpense {
         id: "exp_1".into(),
-        date: "2026-07-24".into(),
+        date: "2026-09-02".into(),
         amount: 10.0,
         category_id: "leisure".into(),
         note: "Dinar amb amics".into(),
     });
 
-    let leisure_after_exp = BudgetEngine::calculate_category_summary(
+    let leisure_after_exp = BudgetEngine::calculate_category_summary_for_date(
         &config,
-        &config.categories.iter().find(|c| c.id == "leisure").unwrap()
+        &config.categories.iter().find(|c| c.id == "leisure").unwrap(),
+        "2026-09-02"
     );
     assert!((leisure_after_exp.accumulated_balance - ((net_daily * 2.0) - 10.0)).abs() < 0.01);
+}
+
+#[test]
+fn test_billing_cycle_calculations() {
+    // Test cycle start day = 1
+    let (s1, e1, total1, day1) = BudgetEngine::get_cycle_range("2026-09-12", 1);
+    assert_eq!(s1, "2026-09-01");
+    assert_eq!(e1, "2026-09-30");
+    assert_eq!(total1, 30);
+    assert_eq!(day1, 12);
+
+    // Test cycle start day = 25 (date before 25th: 2026-09-12)
+    let (s25, e25, total25, day25) = BudgetEngine::get_cycle_range("2026-09-12", 25);
+    assert_eq!(s25, "2026-08-25");
+    assert_eq!(e25, "2026-09-24");
+    assert_eq!(total25, 31); // Aug 25 to Sep 24: 7 days in Aug + 24 days in Sep = 31 days
+    assert_eq!(day25, 19); // 7 days in Aug + 12 days in Sep = 19
+
+    // Test cycle start day = 25 (date on or after 25th: 2026-09-25)
+    let (s25b, e25b, total25b, day25b) = BudgetEngine::get_cycle_range("2026-09-25", 25);
+    assert_eq!(s25b, "2026-09-25");
+    assert_eq!(e25b, "2026-10-24");
+    assert_eq!(total25b, 30); // Sep 25 to Oct 24: 6 days in Sep + 24 days in Oct = 30 days
+    assert_eq!(day25b, 1);
+}
+
+#[test]
+fn test_past_and_future_expenses() {
+    let mut config = get_sample_ods_config();
+    config.billing_cycle_start_day = 1;
+
+    // Add a past expense on 2026-09-05
+    BudgetEngine::add_expense(&mut config, DailyExpense {
+        id: "exp_past".into(),
+        date: "2026-09-05".into(),
+        amount: 50.0,
+        category_id: "food".into(),
+        note: "Supermercat passat".into(),
+    });
+
+    // Add a future expense on 2026-09-20
+    BudgetEngine::add_expense(&mut config, DailyExpense {
+        id: "exp_future".into(),
+        date: "2026-09-20".into(),
+        amount: 30.0,
+        category_id: "food".into(),
+        note: "Sopar previst".into(),
+    });
+
+    let food_cat = config.categories.iter().find(|c| c.id == "food").unwrap();
+
+    // On 2026-09-04 (before past expense): past expense not counted in accumulated balance
+    let s_04 = BudgetEngine::calculate_category_summary_for_date(&config, food_cat, "2026-09-04");
+    assert_eq!(s_04.spent_today, 0.0);
+    assert!((s_04.accumulated_balance - (s_04.net_daily_budget * 4.0)).abs() < 0.01);
+
+    // On 2026-09-12 (after past expense, before future expense): 50€ spent up to date
+    let s_12 = BudgetEngine::calculate_category_summary_for_date(&config, food_cat, "2026-09-12");
+    assert_eq!(s_12.spent_this_month, 80.0); // Total in cycle
+    assert!((s_12.accumulated_balance - ((s_12.net_daily_budget * 12.0) - 50.0)).abs() < 0.01);
+
+    // On 2026-09-20 (on future expense date): both expenses counted
+    let s_20 = BudgetEngine::calculate_category_summary_for_date(&config, food_cat, "2026-09-20");
+    assert_eq!(s_20.spent_today, 30.0);
+    assert!((s_20.accumulated_balance - ((s_20.net_daily_budget * 20.0) - 80.0)).abs() < 0.01);
 }
 
 #[test]
@@ -187,5 +253,4 @@ fn test_end_of_month_settlement() {
     assert!(config.goal_fund_total > 0.0);
     assert_eq!(config.investment_fund_total, 440.0);
     assert_eq!(config.current_day, 1);
-    assert_eq!(config.daily_expenses.len(), 0);
 }

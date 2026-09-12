@@ -1,33 +1,32 @@
-# Walkthrough: Gestor de Finances Personals (Unificació en Rust WebAssembly)
+# Walkthrough: Millores d'Usabilitat (Format dd/mm/aaaa, Botons de Categoria i Calendar Picker)
 
-S'ha transformat l'aplicació per convertir **Rust** en l'única font de veritat financera (*Single Source of Truth*), executat tant de manera nativa com al navegador mitjançant **WebAssembly (WASM)**.
+S'han implementat i verificat amb èxit totes les millores d'usabilitat sol·licitades:
 
 ---
 
 ## 🛠️ Canvis Implementats
 
-### 1. Motor WebAssembly en Rust ([src/wasm_api.rs](file:///home/jordimarias/Desktop/finances-personals/src/wasm_api.rs))
-- Ampliació de l'API exportada mitjançant `#[wasm_bindgen]` per gestionar tot el cicle de vida:
-  - Càlcul de resums de categories i mètriques KPI (`wasm_get_all_summaries`).
-  - Creació, edició i eliminació de despeses diàries i recurrents.
-  - Modificació de percentatges i restauració de valors per defecte.
-  - Simulació d'avançament de dies i liquidació de tancament de mes amb transferència de romanents a fons.
+### 1. Format de Dates `dd/mm/aaaa` a tot arreu
+- El formulari d'anotar despeses, la taula de moviments recents, la capçalera i els cicles mostren i gestionen les dates exclusivament en l'estàndard català/europeu `dd/mm/aaaa` (ex: `12/09/2026`), eliminant el format americà `mm/dd/aa`.
+- El camp de data del formulari disposa d'un input de text sincronitzat i d'un botó directe per obrir el calendari natiu.
 
-### 2. Capa de Presentació JavaScript Pura ([www/app.js](file:///home/jordimarias/Desktop/finances-personals/www/app.js))
-- S'ha eliminat tota duplicitat d'algorismes matemàtics en JavaScript.
-- L'aplicació s'ha migrat a mòdul ES6 (`<script type="module" src="app.js"></script>`) i inicialitza directament el binari WASM (`./pkg/budgeting_app.js` i `.wasm`).
-- El frontend ara s'encarrega exclusivament de la interacció amb el DOM, formularis i emmagatzematge local (`localStorage`).
+### 2. Selecció de Categories mitjançant Graella de Botons (Elecció Obligatòria)
+- S'han eliminat els selectors dropdown (`<select>`) amb valors per defecte, que provocaven assignacions incorrectes accidentals.
+- S'ha implementat una **graella de targetes/botons visuals** amb icona, nom, color i percentatge per a cada categoria.
+- En prémer "+ Nova Despesa" general, **no hi ha cap categoria seleccionada per defecte** i el formulari bloqueja el registre mostrant una advertència (`⚠️ Heu de seleccionar obligatòriament una categoria.`) si l'usuari no en tria una expressament.
+- Si l'usuari clica "+ Anotar Despesa" directament sobre una targeta de categoria concreta, aquella categoria apareix automàticament preseleccionada.
+- Aplicat tant a despeses diàries com a despeses recurrents.
 
-### 3. Servidor Local i Paritat Desktop ([src/main.rs](file:///home/jordimarias/Desktop/finances-personals/src/main.rs))
-- El servidor HTTP integrat de zero dependències ara serveix correctament el tipus MIME `application/wasm` i la ruta `/pkg/*`.
-
-### 4. Automatització de GitHub Pages ([.github/workflows/deploy-pages.yml](file:///home/jordimarias/Desktop/finances-personals/.github/workflows/deploy-pages.yml))
-- El workflow compila automàticament el paquet WebAssembly amb `wasm-pack` abans de publicar a GitHub Pages.
+### 3. Calendar Picker en clicar el requadre de la Data a la Capçalera
+- En fer clic directament sobre el requadre de data central de la capçalera (entre `◀` i `▶`), s'invoca el selector de calendari natiu (`showPicker()`), permetent seleccionar qualsevol dia a l'instant amb un sol toc.
 
 ---
 
 ## 🧪 Verificació i Proves
 
-1. **Testos Unitari en Rust**: Execució de `cargo test` amb 3/3 testos aprovats.
-2. **Compilació WASM**: Execució de `wasm-pack build --target web --out-dir www/pkg` amb èxit.
-3. **Proves Funcionals amb Navegador**: Verificació completa del flux d'onboarding, assignació de percentatges, despeses fixes, despeses diàries, simulació de dies i exportació JSON.
+1. **Testos Unitaris en Rust (`cargo test`)**: 5/5 aprovats.
+2. **Compilació WebAssembly (`wasm-pack build`)**: 100% completada amb èxit.
+3. **Proves Funcionals al Navegador**:
+   - Validació del format `dd/mm/aaaa` a tota la interfície.
+   - Verificació del bloqueig per falta de categoria seleccionada i de la selecció visual per botons.
+   - Verificació de l'obertura del datepicker en prémer el requadre de data.

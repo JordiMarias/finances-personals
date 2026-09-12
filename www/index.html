@@ -130,13 +130,15 @@
                             <option value="Annually">Anual</option>
                         </select>
                     </div>
-                    <div class="form-group col-cat">
-                        <label for="onboardRecCat">Categoria</label>
-                        <select id="onboardRecCat" class="form-input">
-                            <!-- Categories -->
-                        </select>
+                    <div class="form-group col-cat-full">
+                        <label>Categoria Assignada <span style="color: var(--status-danger);">*</span></label>
+                        <div class="category-selector-grid" id="onboardRecCatGrid"></div>
+                        <input type="hidden" id="onboardRecCat" value="">
+                        <div id="onboardRecCatError" class="field-error-msg" style="display: none; color: var(--status-danger); font-size: 0.8rem; margin-top: 4px;">
+                            ⚠️ Heu de seleccionar una categoria.
+                        </div>
                     </div>
-                    <div class="form-group col-btn form-group-btn">
+                    <div class="form-group col-btn form-group-btn" style="margin-top: 10px;">
                         <button type="submit" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">+ Afegir Recurrent</button>
                     </div>
                 </form>
@@ -165,11 +167,19 @@
                 </div>
 
                 <div class="header-actions">
-                    <div class="time-simulator">
-                        <span class="day-badge" id="dayIndicator">Dia 1 de 30</span>
-                        <button class="btn btn-secondary btn-sm" id="btnAdvanceDay" title="Avança 1 dia per simular l'acumulació de saldo disponible">
-                            <span>Avançar Dia</span> ⏩
-                        </button>
+                    <div class="calendar-navigator">
+                        <div class="calendar-controls">
+                            <button class="btn btn-icon-nav" id="btnPrevDay" title="Dia anterior">◀</button>
+                            <div class="calendar-date-container" id="btnOpenCalendarTrigger" title="Canviar data">
+                                <span id="dateDisplayLabel" class="date-display-label">📅 12 set. 2026</span>
+                                <input type="date" id="datePickerInput" class="date-picker-hidden-input">
+                            </div>
+                            <button class="btn btn-icon-nav" id="btnNextDay" title="Dia següent">▶</button>
+                            <button class="btn btn-sm btn-today" id="btnToday" title="Anar al dia d'avui">Avui</button>
+                        </div>
+                        <div class="cycle-info-pill" id="cycleIndicatorBadge">
+                            Cicle: 1 set. - 30 set. (Dia 12 de 30)
+                        </div>
                     </div>
 
                     <button class="btn btn-secondary btn-sm" id="btnHeaderExport" title="Exportar còpia de seguretat en fitxer JSON">
@@ -322,10 +332,21 @@
                 <div class="modal-body">
                     <input type="hidden" id="expEditId" value="">
                     <div class="form-group">
-                        <label for="expCategory">Categoria Assignada</label>
-                        <select id="expCategory" required class="form-input">
-                            <!-- Categories populated dynamically -->
-                        </select>
+                        <label for="expDateText">Data del Moviment (dd/mm/aaaa) <span style="color: var(--status-danger);">*</span></label>
+                        <div class="custom-date-input-group">
+                            <input type="text" id="expDateText" class="form-input" placeholder="dd/mm/aaaa" maxlength="10" required>
+                            <input type="date" id="expDate" class="date-picker-overlay-input" tabindex="-1">
+                            <button type="button" class="btn btn-secondary btn-sm btn-calendar-addon" id="btnPickExpDate" title="Obrir calendari">📅</button>
+                        </div>
+                        <span class="form-help" id="expDateHelp" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Format: <strong>dd/mm/aaaa</strong> (Ex: 12/09/2026)</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoria Assignada <span style="color: var(--status-danger);">*</span></label>
+                        <div class="category-selector-grid" id="expCategoryGrid"></div>
+                        <input type="hidden" id="expCategory" value="">
+                        <div id="expCategoryError" class="field-error-msg" style="display: none; color: var(--status-danger); font-size: 0.8rem; margin-top: 4px;">
+                            ⚠️ Heu de seleccionar obligatòriament una categoria.
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="expAmount">Import (€)</label>
@@ -358,6 +379,19 @@
                     <div class="input-with-button">
                         <input type="number" id="cfgIncome" step="10" min="0" value="1323" class="form-input">
                         <button type="button" class="btn btn-primary" id="btnSaveIncome">Actualitzar Sou</button>
+                    </div>
+                </div>
+
+                <!-- Billing Cycle Reset Day Section -->
+                <div class="form-group" style="margin-top: 14px;">
+                    <label for="cfgBillingCycleDay">Dia d'Inici del Cicle de Facturació / Reset (1 a 28)</label>
+                    <div class="input-with-button">
+                        <input type="number" id="cfgBillingCycleDay" min="1" max="28" step="1" value="1" class="form-input">
+                        <button type="button" class="btn btn-primary" id="btnSaveBillingCycle">Guardar Dia de Cicle</button>
+                    </div>
+                    <div class="form-help info-box" style="margin-top: 6px;">
+                        <span>ℹ️</span>
+                        <span>Per defecte el cicle comença el <strong>dia 1</strong> de cada mes. Si cobreu la nòmina el dia 25, podeu establir-lo al <strong>25</strong> per mesurar el vostre pressupost de nòmina a nòmina.</span>
                     </div>
                 </div>
 
@@ -460,13 +494,15 @@
                                 <option value="Annually">Anual</option>
                             </select>
                         </div>
-                        <div class="form-group col-cat">
-                            <label for="recCategory">Categoria</label>
-                            <select id="recCategory" class="form-input">
-                                <!-- Populated -->
-                            </select>
+                        <div class="form-group col-cat-full">
+                            <label>Categoria Assignada <span style="color: var(--status-danger);">*</span></label>
+                            <div class="category-selector-grid" id="recCategoryGrid"></div>
+                            <input type="hidden" id="recCategory" value="">
+                            <div id="recCategoryError" class="field-error-msg" style="display: none; color: var(--status-danger); font-size: 0.8rem; margin-top: 4px;">
+                                ⚠️ Heu de seleccionar obligatòriament una categoria.
+                            </div>
                         </div>
-                        <div class="form-group col-btn form-group-btn">
+                        <div class="form-group col-btn form-group-btn" style="margin-top: 10px;">
                             <button type="submit" class="btn btn-primary" id="btnSubmitRecurring" style="width: 100%; text-align: center; justify-content: center;">+ Guardar Recurrent</button>
                         </div>
                     </form>

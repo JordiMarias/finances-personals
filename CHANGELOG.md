@@ -4,6 +4,17 @@ Tots els canvis notables en aquest projecte es documenten en aquest fitxer.
 
 El format es basa en [Keep a Changelog](https://keepachangelog.com/ca/1.0.0/) i aquest projecte segueix [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-09-12
+
+### ✨ Noves Funcionalitats
+- **Format de Dates Europeu Estàndard (`dd/mm/aaaa`)**: Totes les dates de l'aplicació (pantalla d'anotar despesa, capçalera, taula de moviments i cicles) utilitzen el format `dd/mm/aaaa` en comptes del format americà.
+- **Selector de Categories per Botons Interactius (Opcions Obligatòries)**: Substitució dels dropdowns (`<select>`) per una graella de botons visuals amb icones, noms i percentatges. No hi ha cap categoria preseleccionada per defecte en noves despeses generals i el formulari obliga a triar-ne una activament per evitar errors d'assignació.
+- **Calendar Picker Natiu al Requadre de Data**: En prémer el requadre de data central de la capçalera (entre `◀` i `▶`), s'obre immediatament el selector de calendari per triar qualsevol dia.
+- **Dates Reals de Calendari & Obertura al Dia Present**: L'aplicació s'obre directament al dia actual i permet navegar entre dies passats, presents i futurs amb recàlcul instantani de saldos en Rust WebAssembly.
+- **Cicle de Facturació / Reset Personalitzable (1 a 28)**: Dia de tall del mes configurable amb recàlcul automàtic del període actiu.
+
+---
+
 ## [0.3.0] - 2026-09-12
 
 ### ✨ Noves Funcionalitats
