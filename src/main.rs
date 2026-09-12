@@ -1,15 +1,19 @@
 use budgeting_app::model::*;
 use budgeting_app::engine::BudgetEngine;
 use budgeting_app::storage::StorageManager;
+use std::borrow::Cow;
 use std::env;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 
-const HTML_CONTENT: &str = include_str!("../www/index.html");
-const CSS_CONTENT: &str = include_str!("../www/style.css");
-const JS_CONTENT: &str = include_str!("../www/app.js");
+const HTML_BYTES: &[u8] = include_bytes!("../www/index.html");
+const CSS_BYTES: &[u8] = include_bytes!("../www/style.css");
+const JS_BYTES: &[u8] = include_bytes!("../www/app.js");
+const WASM_JS_BYTES: &[u8] = include_bytes!("../www/pkg/budgeting_app.js");
+const WASM_BIN_BYTES: &[u8] = include_bytes!("../www/pkg/budgeting_app_bg.wasm");
 
 fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 2048];
@@ -21,24 +25,51 @@ fn handle_client(mut stream: TcpStream) {
         let first_line = request.lines().next().unwrap_or("");
         let mut parts = first_line.split_whitespace();
         let _method = parts.next().unwrap_or("");
-        let path = parts.next().unwrap_or("/");
+        let raw_path = parts.next().unwrap_or("/");
+        let clean_path = raw_path.split('?').next().unwrap_or("/").trim_start_matches('/');
 
-        let (status_line, content_type, body) = match path {
-            "/" | "/index.html" => ("HTTP/1.1 200 OK", "text/html; charset=utf-8", HTML_CONTENT),
-            "/style.css" => ("HTTP/1.1 200 OK", "text/css; charset=utf-8", CSS_CONTENT),
-            "/app.js" => ("HTTP/1.1 200 OK", "application/javascript; charset=utf-8", JS_CONTENT),
-            _ => ("HTTP/1.1 404 NOT FOUND", "text/plain", "404 Not Found"),
+        let (status_line, content_type, body): (&str, &str, Cow<[u8]>) = match clean_path {
+            "" | "index.html" => ("HTTP/1.1 200 OK", "text/html; charset=utf-8", HTML_BYTES.into()),
+            "style.css" => ("HTTP/1.1 200 OK", "text/css; charset=utf-8", CSS_BYTES.into()),
+            "app.js" => ("HTTP/1.1 200 OK", "application/javascript; charset=utf-8", JS_BYTES.into()),
+            "pkg/budgeting_app.js" => ("HTTP/1.1 200 OK", "application/javascript; charset=utf-8", WASM_JS_BYTES.into()),
+            "pkg/budgeting_app_bg.wasm" => ("HTTP/1.1 200 OK", "application/wasm", WASM_BIN_BYTES.into()),
+            other => {
+                let disk_path = Path::new("www").join(other);
+                if disk_path.is_file() {
+                    if let Ok(file_bytes) = std::fs::read(&disk_path) {
+                        let ct = if other.ends_with(".wasm") {
+                            "application/wasm"
+                        } else if other.ends_with(".js") || other.ends_with(".mjs") {
+                            "application/javascript; charset=utf-8"
+                        } else if other.ends_with(".css") {
+                            "text/css; charset=utf-8"
+                        } else if other.ends_with(".json") {
+                            "application/json; charset=utf-8"
+                        } else if other.ends_with(".html") {
+                            "text/html; charset=utf-8"
+                        } else {
+                            "application/octet-stream"
+                        };
+                        ("HTTP/1.1 200 OK", ct, file_bytes.into())
+                    } else {
+                        ("HTTP/1.1 404 NOT FOUND", "text/plain", b"404 Not Found"[..].into())
+                    }
+                } else {
+                    ("HTTP/1.1 404 NOT FOUND", "text/plain", b"404 Not Found"[..].into())
+                }
+            }
         };
 
-        let response = format!(
-            "{}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n{}",
+        let header = format!(
+            "{}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n",
             status_line,
             content_type,
-            body.len(),
-            body
+            body.len()
         );
 
-        let _ = stream.write_all(response.as_bytes());
+        let _ = stream.write_all(header.as_bytes());
+        let _ = stream.write_all(&body);
         let _ = stream.flush();
     }
 }
@@ -171,4 +202,3 @@ fn main() {
         thread::sleep(std::time::Duration::from_secs(1));
     }
 }
-

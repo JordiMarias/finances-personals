@@ -112,7 +112,7 @@ impl Default for BudgetConfig {
                     percentage: 0.30,
                     destination_fund: FundType::Emergency,
                     icon: "🏠".into(),
-                    color: "#6366f1".into(),
+                    color: "#002b49".into(),
                 },
                 Category {
                     id: "transport".into(),
@@ -120,7 +120,7 @@ impl Default for BudgetConfig {
                     percentage: 0.10,
                     destination_fund: FundType::Emergency,
                     icon: "🚗".into(),
-                    color: "#3b82f6".into(),
+                    color: "#007ea8".into(),
                 },
                 Category {
                     id: "food".into(),
@@ -128,7 +128,7 @@ impl Default for BudgetConfig {
                     percentage: 0.10,
                     destination_fund: FundType::Emergency,
                     icon: "🛒".into(),
-                    color: "#10b981".into(),
+                    color: "#059669".into(),
                 },
                 Category {
                     id: "utilities".into(),
@@ -136,7 +136,7 @@ impl Default for BudgetConfig {
                     percentage: 0.05,
                     destination_fund: FundType::Emergency,
                     icon: "⚡".into(),
-                    color: "#f59e0b".into(),
+                    color: "#d97706".into(),
                 },
                 Category {
                     id: "leisure".into(),
@@ -144,7 +144,7 @@ impl Default for BudgetConfig {
                     percentage: 0.25,
                     destination_fund: FundType::Goal,
                     icon: "🎉".into(),
-                    color: "#ec4899".into(),
+                    color: "#7c3aed".into(),
                 },
                 Category {
                     id: "savings".into(),
@@ -152,7 +152,7 @@ impl Default for BudgetConfig {
                     percentage: 0.20,
                     destination_fund: FundType::Investment,
                     icon: "📈".into(),
-                    color: "#8b5cf6".into(),
+                    color: "#0284c7".into(),
                 },
             ],
             recurring_expenses: vec![],

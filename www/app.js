@@ -1,23 +1,46 @@
 // ==========================================================================
-// Gestor de Finances Personals - Application Controller
+// Gestor de Finances Personals - Application Controller (WebAssembly Engine)
 // ==========================================================================
 
-const SMI_DEFAULT_INCOME = 1323.00; // Salari Mínim Interprofessional (SMI) en 12 pagues
+import init, {
+    wasm_get_default_config,
+    wasm_get_all_summaries,
+    wasm_add_expense,
+    wasm_update_expense,
+    wasm_remove_expense,
+    wasm_clear_expenses,
+    wasm_update_income,
+    wasm_update_category_percentage,
+    wasm_reset_default_percentages,
+    wasm_add_recurring,
+    wasm_update_recurring,
+    wasm_remove_recurring,
+    wasm_advance_day_with_settlement,
+    wasm_settle_month
+} from './pkg/budgeting_app.js';
 
+let state = null;
+let wasmInitialized = false;
+
+// Helper: Format Currency in European Catalan standard (ex: 1.323,00 €)
+export function formatCurrency(amount) {
+    return (amount || 0).toLocaleString('ca-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }) + ' €';
+}
+
+// Load default state directly from Rust WASM
 function getCleanDefaultState() {
+    if (wasmInitialized) {
+        return JSON.parse(wasm_get_default_config());
+    }
     return {
-        monthly_income: SMI_DEFAULT_INCOME,
+        monthly_income: 1323.00,
         days_in_month: 30,
         current_day: 1,
         setup_completed: false,
-        categories: [
-            { id: "housing", name: "Habitatge", percentage: 0.30, destination_fund: "Emergency", icon: "🏠", color: "#002b49" },
-            { id: "transport", name: "Transport / Mobilitat", percentage: 0.10, destination_fund: "Emergency", icon: "🚗", color: "#007ea8" },
-            { id: "food", name: "Alimentació bàsica", percentage: 0.10, destination_fund: "Emergency", icon: "🛒", color: "#059669" },
-            { id: "utilities", name: "Subministraments i serveis", percentage: 0.05, destination_fund: "Emergency", icon: "⚡", color: "#d97706" },
-            { id: "leisure", name: "Oci / Despeses personals", percentage: 0.25, destination_fund: "Goal", icon: "🎉", color: "#7c3aed" },
-            { id: "savings", name: "Estalvi i inversions", percentage: 0.20, destination_fund: "Investment", icon: "📈", color: "#0284c7" }
-        ],
+        categories: [],
         recurring_expenses: [],
         daily_expenses: [],
         emergency_fund_total: 0.0,
@@ -26,86 +49,39 @@ function getCleanDefaultState() {
     };
 }
 
-let state = getCleanDefaultState();
-
-// Helper: Format Currency in European Catalan standard (ex: 1.323,00 €)
-function formatCurrency(amount) {
-    return (amount || 0).toLocaleString('ca-ES', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }) + ' €';
-}
-
-// Helper: Monthly cost of a recurring expense
-function getMonthlyCost(rec) {
-    if (rec.frequency === 'Annually') return rec.amount / 12.0;
-    if (rec.frequency === 'Quarterly') return rec.amount / 3.0;
-    return rec.amount;
-}
-
-// Calculate Summaries for all categories
-function calculateCategorySummaries() {
-    const summaries = [];
-    const days = state.days_in_month || 30;
-    const currentDay = state.current_day || 1;
-
-    state.categories.forEach(cat => {
-        const grossMonthly = state.monthly_income * cat.percentage;
-        const recMonthly = state.recurring_expenses
-            .filter(r => r.category_id === cat.id)
-            .reduce((sum, r) => sum + getMonthlyCost(r), 0.0);
-        
-        const netMonthly = grossMonthly - recMonthly;
-        const grossDaily = grossMonthly / days;
-        const recDaily = recMonthly / days;
-        const netDaily = netMonthly / days;
-
-        const spentThisMonth = state.daily_expenses
-            .filter(e => e.category_id === cat.id)
-            .reduce((sum, e) => sum + e.amount, 0.0);
-
-        const accumulatedBalance = (netDaily * currentDay) - spentThisMonth;
-
-        summaries.push({
-            category: cat,
-            grossMonthly,
-            recMonthly,
-            netMonthly,
-            grossDaily,
-            recDaily,
-            netDaily,
-            accumulatedBalance,
-            spentThisMonth
-        });
-    });
-
-    return summaries;
-}
-
 // Persist state in LocalStorage
 function saveState() {
     localStorage.setItem('gestor_finances_personals_state', JSON.stringify(state));
     renderApp();
 }
 
-// Load state from LocalStorage
+// Load state from LocalStorage or Rust WASM Default
 function loadStateFromStorage() {
     const saved = localStorage.getItem('gestor_finances_personals_state') || localStorage.getItem('budgeting_quest_state');
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
             state = Object.assign(getCleanDefaultState(), parsed);
+            return;
         } catch (e) {
-            console.error('Error carregant estat:', e);
+            console.error('Error carregant estat des de LocalStorage:', e);
         }
     }
+    state = getCleanDefaultState();
+}
+
+// Helper: Monthly cost of a recurring expense
+function getRecurringMonthlyCost(rec) {
+    if (rec.frequency === 'Annually') return rec.amount / 12.0;
+    if (rec.frequency === 'Quarterly') return rec.amount / 3.0;
+    return rec.amount;
 }
 
 // ==========================================================================
 // Backup & Restore (JSON File Export & Import)
 // ==========================================================================
 
-function exportStateToFile() {
+export function exportStateToFile() {
     const jsonString = JSON.stringify(state, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -120,7 +96,7 @@ function exportStateToFile() {
     URL.revokeObjectURL(url);
 }
 
-function importStateFromFile(file) {
+export function importStateFromFile(file) {
     if (!file) return;
 
     const reader = new FileReader();
@@ -148,24 +124,15 @@ function importStateFromFile(file) {
 // Interactive Percentage Allocation Rendering & Updating
 // ==========================================================================
 
-const DEFAULT_PERCENTAGES = {
-    housing: 0.30,
-    transport: 0.10,
-    food: 0.10,
-    utilities: 0.05,
-    leisure: 0.25,
-    savings: 0.20
-};
-
 function renderAllocationTable(tbodyId, badgeId, incomeVal, isConfig = false) {
     const tbody = document.getElementById(tbodyId);
     const badge = document.getElementById(badgeId);
-    if (!tbody) return;
+    if (!tbody || !state || !state.categories) return;
 
     tbody.innerHTML = '';
     let totalPct = 0;
 
-    state.categories.forEach((cat, index) => {
+    state.categories.forEach((cat) => {
         const pctValue = Math.round(cat.percentage * 100);
         totalPct += pctValue;
         const grossMonth = incomeVal * cat.percentage;
@@ -221,10 +188,8 @@ function renderAllocationTable(tbodyId, badgeId, incomeVal, isConfig = false) {
             let val = parseFloat(e.target.value);
             if (isNaN(val) || val < 0) val = 0;
             
-            const cat = state.categories.find(c => c.id === catId);
-            if (cat) {
-                cat.percentage = val / 100.0;
-            }
+            // Delegate percentage update to Rust WASM
+            state = JSON.parse(wasm_update_category_percentage(JSON.stringify(state), catId, val / 100.0));
 
             const currentIncome = isConfig ? 
                 parseFloat(document.getElementById('cfgIncome').value) || state.monthly_income :
@@ -235,20 +200,21 @@ function renderAllocationTable(tbodyId, badgeId, incomeVal, isConfig = false) {
     });
 }
 
-function resetDefaultPercentages() {
-    state.categories.forEach(cat => {
-        if (DEFAULT_PERCENTAGES[cat.id] !== undefined) {
-            cat.percentage = DEFAULT_PERCENTAGES[cat.id];
-        }
-    });
+function resetDefaultPercentages(tbodyId, badgeId, isConfig = false) {
+    // Delegate reset to Rust WASM
+    state = JSON.parse(wasm_reset_default_percentages(JSON.stringify(state)));
+    const currentIncome = isConfig ?
+        parseFloat(document.getElementById('cfgIncome').value) || state.monthly_income :
+        parseFloat(document.getElementById('onboardIncome').value) || state.monthly_income;
+    renderAllocationTable(tbodyId, badgeId, currentIncome, isConfig);
 }
 
 // ==========================================================================
-// Main Application Rendering
+// Main Application Rendering (Driven by Rust WASM Summaries)
 // ==========================================================================
 
 function renderApp() {
-    loadStateFromStorage();
+    if (!wasmInitialized || !state) return;
 
     // Onboarding status
     const onboardOverlay = document.getElementById('onboardingScreen');
@@ -256,9 +222,9 @@ function renderApp() {
         onboardOverlay.classList.add('active');
         const incomeInput = document.getElementById('onboardIncome');
         if (incomeInput && (!incomeInput.value || parseFloat(incomeInput.value) <= 0)) {
-            incomeInput.value = (state.monthly_income || SMI_DEFAULT_INCOME).toFixed(2);
+            incomeInput.value = (state.monthly_income || 1323.00).toFixed(2);
         }
-        const curIncome = parseFloat(incomeInput.value) || SMI_DEFAULT_INCOME;
+        const curIncome = parseFloat(incomeInput.value) || 1323.00;
         renderAllocationTable('onboardCategoriesTableBody', 'onboardTotalPctBadge', curIncome, false);
         renderOnboardRecTable();
     } else {
@@ -268,12 +234,14 @@ function renderApp() {
     // Header values & Simulator
     document.getElementById('dayIndicator').textContent = `Dia ${state.current_day} de ${state.days_in_month}`;
 
-    const summaries = calculateCategorySummaries();
+    // Get 100% of calculation summaries from Rust WebAssembly
+    const summariesJson = wasm_get_all_summaries(JSON.stringify(state));
+    const summaries = JSON.parse(summariesJson);
 
     // Summary KPI metrics
-    const totalRecMonthly = state.recurring_expenses.reduce((s, r) => s + getMonthlyCost(r), 0.0);
-    const totalNetDaily = summaries.reduce((s, c) => s + c.netDaily, 0.0);
-    const positiveCount = summaries.filter(s => s.accumulatedBalance >= 0.0).length;
+    const totalRecMonthly = summaries.reduce((sum, s) => sum + s.recurring_monthly_cost, 0.0);
+    const totalNetDaily = summaries.reduce((sum, s) => sum + s.net_daily_budget, 0.0);
+    const positiveCount = summaries.filter(s => s.accumulated_balance >= 0.0).length;
 
     document.getElementById('valIncome').textContent = formatCurrency(state.monthly_income);
     document.getElementById('valRecurring').textContent = formatCurrency(totalRecMonthly);
@@ -297,14 +265,15 @@ function renderApp() {
     grid.innerHTML = '';
 
     summaries.forEach(s => {
-        const isPositive = s.accumulatedBalance >= 0.0;
+        const isPositive = s.accumulated_balance >= 0.0;
         const pctFormatted = Math.round(s.category.percentage * 100);
         const card = document.createElement('div');
         card.className = 'category-card';
 
-        // Calculation of progress percentage for monthly consumption
-        const spentPct = s.netMonthly > 0 ? Math.min(100, Math.max(0, (s.spentThisMonth / s.netMonthly) * 100)) : 0;
-        const isOverlimit = s.accumulatedBalance < 0.0;
+        // Monthly net progress percentage
+        const spentPct = s.net_monthly_budget > 0 ? 
+            Math.min(100, Math.max(0, (s.spent_this_month / s.net_monthly_budget) * 100)) : 0;
+        const isOverlimit = s.accumulated_balance < 0.0;
 
         card.innerHTML = `
             <div>
@@ -313,7 +282,7 @@ function renderApp() {
                         <div class="cat-icon-badge">${s.category.icon}</div>
                         <div class="cat-names">
                             <h3>${s.category.name}</h3>
-                            <div class="cat-pct">${pctFormatted}% del Sou (${formatCurrency(s.grossMonthly)}/mes)</div>
+                            <div class="cat-pct">${pctFormatted}% del Sou (${formatCurrency(s.gross_monthly_budget)}/mes)</div>
                         </div>
                     </div>
                     <div class="cat-status-pill ${isPositive ? '' : 'negative'}">
@@ -324,22 +293,22 @@ function renderApp() {
                 <div class="cat-balance-box">
                     <div class="label">Saldo Acumulat Disponible</div>
                     <div class="amount" style="color: ${isPositive ? 'var(--status-success)' : 'var(--status-danger)'};">
-                        ${formatCurrency(s.accumulatedBalance)}
+                        ${formatCurrency(s.accumulated_balance)}
                     </div>
                 </div>
 
                 <div class="cat-metrics-row">
                     <span>Límit Diari Net:</span>
-                    <span class="val">${formatCurrency(s.netDaily)}/dia</span>
+                    <span class="val">${formatCurrency(s.net_daily_budget)}/dia</span>
                 </div>
                 <div class="cat-metrics-row">
                     <span>Despeses Recurrents:</span>
-                    <span class="val">${formatCurrency(s.recMonthly)}/mes</span>
+                    <span class="val">${formatCurrency(s.recurring_monthly_cost)}/mes</span>
                 </div>
                 <div class="cat-metrics-row">
                     <span>Gastat aquest mes:</span>
-                    <span class="val" style="color: ${s.spentThisMonth > 0 ? 'var(--text-primary)' : 'var(--text-muted)'};">
-                        ${formatCurrency(s.spentThisMonth)}
+                    <span class="val" style="color: ${s.spent_this_month > 0 ? 'var(--text-primary)' : 'var(--text-muted)'};">
+                        ${formatCurrency(s.spent_this_month)}
                     </span>
                 </div>
 
@@ -355,7 +324,7 @@ function renderApp() {
             </div>
 
             <div class="cat-card-actions">
-                <button class="btn btn-outline btn-sm" style="width: 100%;" onclick="openAddExpenseForCat('${s.category.id}')">
+                <button class="btn btn-outline btn-sm" style="width: 100%;" onclick="window.openAddExpenseForCat('${s.category.id}')">
                     + Anotar Despesa
                 </button>
             </div>
@@ -363,7 +332,7 @@ function renderApp() {
         grid.appendChild(card);
     });
 
-    // Funds
+    // Funds (Calculated and held in Rust state)
     document.getElementById('fundEmergency').textContent = formatCurrency(state.emergency_fund_total);
     document.getElementById('fundGoal').textContent = formatCurrency(state.goal_fund_total);
     document.getElementById('fundInvestment').textContent = formatCurrency(state.investment_fund_total);
@@ -389,7 +358,7 @@ function populateCategoryDropdowns() {
     ];
 
     selects.forEach(sel => {
-        if (!sel) return;
+        if (!sel || !state || !state.categories) return;
         const curVal = sel.value;
         sel.innerHTML = '';
         state.categories.forEach(cat => {
@@ -404,9 +373,10 @@ function populateCategoryDropdowns() {
 
 function renderExpensesTable() {
     const tbody = document.getElementById('expensesTableBody');
+    if (!tbody || !state) return;
     tbody.innerHTML = '';
 
-    if (state.daily_expenses.length === 0) {
+    if (!state.daily_expenses || state.daily_expenses.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No hi ha moviments diaris registrats per a aquest període.</td></tr>`;
         return;
     }
@@ -423,8 +393,8 @@ function renderExpensesTable() {
             <td>${exp.note || '-'}</td>
             <td class="cell-amount">${formatCurrency(exp.amount)}</td>
             <td style="text-align: right;">
-                <button class="btn btn-outline btn-sm" onclick="editExpense('${exp.id}')">✏️ Editar</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${exp.id}')" style="color: var(--status-danger);">🗑️</button>
+                <button class="btn btn-outline btn-sm" onclick="window.editExpense('${exp.id}')">✏️ Editar</button>
+                <button class="btn btn-ghost btn-sm" onclick="window.deleteExpense('${exp.id}')" style="color: var(--status-danger);">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -433,10 +403,10 @@ function renderExpensesTable() {
 
 function renderRecurringTable() {
     const tbody = document.getElementById('recurringTableBody');
-    if (!tbody) return;
+    if (!tbody || !state) return;
     tbody.innerHTML = '';
 
-    if (state.recurring_expenses.length === 0) {
+    if (!state.recurring_expenses || state.recurring_expenses.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 18px;">Sense despeses recurrents configurades.</td></tr>`;
         return;
     }
@@ -444,7 +414,7 @@ function renderRecurringTable() {
     state.recurring_expenses.forEach(rec => {
         const cat = state.categories.find(c => c.id === rec.category_id) || { name: 'Altres', icon: '🏷️' };
         const freqText = rec.frequency === 'Annually' ? 'Anual' : (rec.frequency === 'Quarterly' ? 'Trimestral' : 'Mensual');
-        const monthly = getMonthlyCost(rec);
+        const monthly = getRecurringMonthlyCost(rec);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -454,8 +424,8 @@ function renderRecurringTable() {
             <td style="font-weight: 600;">${formatCurrency(monthly)}/mes</td>
             <td><span class="cell-badge">${cat.icon} ${cat.name}</span></td>
             <td style="text-align: right;">
-                <button class="btn btn-outline btn-sm" onclick="editRecurring('${rec.id}')">✏️ Editar</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteRecurring('${rec.id}')" style="color: var(--status-danger);">🗑️</button>
+                <button class="btn btn-outline btn-sm" onclick="window.editRecurring('${rec.id}')">✏️ Editar</button>
+                <button class="btn btn-ghost btn-sm" onclick="window.deleteRecurring('${rec.id}')" style="color: var(--status-danger);">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -464,10 +434,10 @@ function renderRecurringTable() {
 
 function renderOnboardRecTable() {
     const tbody = document.getElementById('onboardRecTableBody');
-    if (!tbody) return;
+    if (!tbody || !state) return;
     tbody.innerHTML = '';
 
-    if (state.recurring_expenses.length === 0) {
+    if (!state.recurring_expenses || state.recurring_expenses.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 14px;">No hi ha cap despesa recurrent afegida. Podeu continuar o afegir-ne a sota.</td></tr>`;
         return;
     }
@@ -475,7 +445,7 @@ function renderOnboardRecTable() {
     state.recurring_expenses.forEach(rec => {
         const cat = state.categories.find(c => c.id === rec.category_id) || { name: 'Altres', icon: '🏷️' };
         const freqText = rec.frequency === 'Annually' ? 'Anual' : (rec.frequency === 'Quarterly' ? 'Trimestral' : 'Mensual');
-        const monthly = getMonthlyCost(rec);
+        const monthly = getRecurringMonthlyCost(rec);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -485,7 +455,7 @@ function renderOnboardRecTable() {
             <td style="font-weight: 600;">${formatCurrency(monthly)}/mes</td>
             <td><span class="cell-badge">${cat.icon} ${cat.name}</span></td>
             <td style="text-align: right;">
-                <button class="btn btn-ghost btn-sm" onclick="deleteRecurring('${rec.id}')" style="color: var(--status-danger);" title="Eliminar">🗑️</button>
+                <button class="btn btn-ghost btn-sm" onclick="window.deleteRecurring('${rec.id}')" style="color: var(--status-danger);" title="Eliminar">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -493,10 +463,10 @@ function renderOnboardRecTable() {
 }
 
 // ==========================================================================
-// Operations: Daily Expenses (Add, Edit, Delete)
+// Operations: Daily Expenses (Delegated to Rust WASM)
 // ==========================================================================
 
-function openAddExpenseForCat(catId) {
+export function openAddExpenseForCat(catId) {
     document.getElementById('expEditId').value = '';
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
@@ -511,7 +481,7 @@ function openAddExpenseForCat(catId) {
     setTimeout(() => document.getElementById('expAmount').focus(), 50);
 }
 
-function editExpense(id) {
+export function editExpense(id) {
     const exp = state.daily_expenses.find(e => e.id === id);
     if (!exp) return;
 
@@ -525,18 +495,18 @@ function editExpense(id) {
     document.getElementById('modalExpense').classList.add('active');
 }
 
-function deleteExpense(id) {
+export function deleteExpense(id) {
     if (confirm("Segur que voleu eliminar aquest moviment?")) {
-        state.daily_expenses = state.daily_expenses.filter(e => e.id !== id);
+        state = JSON.parse(wasm_remove_expense(JSON.stringify(state), id));
         saveState();
     }
 }
 
 // ==========================================================================
-// Operations: Recurring Expenses (Add, Edit, Delete)
+// Operations: Recurring Expenses (Delegated to Rust WASM)
 // ==========================================================================
 
-function editRecurring(id) {
+export function editRecurring(id) {
     const rec = state.recurring_expenses.find(r => r.id === id);
     if (!rec) return;
 
@@ -550,64 +520,21 @@ function editRecurring(id) {
     document.getElementById('btnSubmitRecurring').textContent = 'Actualitzar Recurrent';
 }
 
-function deleteRecurring(id) {
+export function deleteRecurring(id) {
     if (confirm("Segur que voleu eliminar aquesta despesa recurrent?")) {
-        state.recurring_expenses = state.recurring_expenses.filter(r => r.id !== id);
+        state = JSON.parse(wasm_remove_recurring(JSON.stringify(state), id));
         saveState();
         renderOnboardRecTable();
     }
 }
 
 // ==========================================================================
-// Time Simulation & Month Settlement
+// Time Simulation & Month Settlement (Calculated exclusively in Rust)
 // ==========================================================================
 
-function advanceDay() {
-    if (state.current_day < state.days_in_month) {
-        state.current_day += 1;
-        saveState();
-    } else {
-        settleMonth();
-    }
-}
-
-function settleMonth() {
-    const summaries = calculateCategorySummaries();
-    let emergencySurplus = 0.0;
-    let goalSurplus = 0.0;
-    let investmentTotal = 0.0;
-    let totalSpent = 0.0;
-    let victories = 0;
-    let deficits = 0;
-
-    summaries.forEach(s => {
-        totalSpent += s.spentThisMonth;
-        if (s.accumulatedBalance >= 0.0) {
-            victories += 1;
-        } else {
-            deficits += 1;
-        }
-
-        if (s.category.destination_fund === 'Emergency') {
-            if (s.accumulatedBalance > 0.0) emergencySurplus += s.accumulatedBalance;
-        } else if (s.category.destination_fund === 'Goal') {
-            if (s.accumulatedBalance > 0.0) goalSurplus += s.accumulatedBalance;
-        } else if (s.category.destination_fund === 'Investment') {
-            investmentTotal += s.grossMonthly;
-        }
-    });
-
-    state.emergency_fund_total += emergencySurplus;
-    state.goal_fund_total += goalSurplus;
-    state.investment_fund_total += investmentTotal;
-
-    // Reset cycle
-    state.current_day = 1;
-    state.daily_expenses = [];
-    saveState();
-
-    // Show Settlement Banner
+function displaySettlementCard(settlement) {
     const container = document.getElementById('settlementContainer');
+    if (!container) return;
     container.style.display = 'block';
     container.innerHTML = `
         <div class="settlement-card">
@@ -615,23 +542,23 @@ function settleMonth() {
                 <h3>🎉 Liquidació i Tancament de Període Mensual</h3>
                 <button class="btn btn-secondary btn-sm" onclick="document.getElementById('settlementContainer').style.display='none'">✕ Tancar</button>
             </div>
-            <p style="color: #e0f2fe; margin-top: -6px;">S'han traslladat els romanents positius als vostres fons consolidats i s'ha iniciat el nou mes.</p>
+            <p style="color: #e0f2fe; margin-top: -6px;">El motor financer en Rust ha transferit els romanents positius als vostres fons consolidats.</p>
             <div class="settlement-grid">
                 <div class="settlement-tile">
                     <div class="lbl">Fons d'Emergència (+ Sobrant)</div>
-                    <div class="val">+${formatCurrency(emergencySurplus)}</div>
+                    <div class="val">+${formatCurrency(settlement.total_saved_emergency)}</div>
                 </div>
                 <div class="settlement-tile">
                     <div class="lbl">Fons d'Objectius & Projectes</div>
-                    <div class="val">+${formatCurrency(goalSurplus)}</div>
+                    <div class="val">+${formatCurrency(settlement.total_saved_goals)}</div>
                 </div>
                 <div class="settlement-tile">
                     <div class="lbl">Fons d'Estalvi i Inversió</div>
-                    <div class="val">+${formatCurrency(investmentTotal)}</div>
+                    <div class="val">+${formatCurrency(settlement.total_invested)}</div>
                 </div>
                 <div class="settlement-tile">
                     <div class="lbl">Partides en Superàvit</div>
-                    <div class="val" style="color: #34d399;">${victories} / ${summaries.length}</div>
+                    <div class="val" style="color: #34d399;">${settlement.victories_count} / ${state.categories.length}</div>
                 </div>
             </div>
         </div>
@@ -639,252 +566,263 @@ function settleMonth() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function advanceDay() {
+    // Advance day with settlement calculation directly inside Rust WASM
+    const res = JSON.parse(wasm_advance_day_with_settlement(JSON.stringify(state)));
+    state = res.config;
+    saveState();
+
+    if (res.settlement) {
+        displaySettlementCard(res.settlement);
+    }
+}
+
+function settleMonthManually() {
+    // Settle month directly inside Rust WASM
+    const res = JSON.parse(wasm_settle_month(JSON.stringify(state)));
+    state = res.config;
+    saveState();
+    displaySettlementCard(res.settlement);
+}
+
 function closeAllModals() {
     document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('active'));
 }
 
+// Global exposure for inline HTML event handlers
+window.openAddExpenseForCat = openAddExpenseForCat;
+window.editExpense = editExpense;
+window.deleteExpense = deleteExpense;
+window.editRecurring = editRecurring;
+window.deleteRecurring = deleteRecurring;
+
 // ==========================================================================
-// Event Listeners Initialization
+// Event Listeners & Application Bootstrapping
 // ==========================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadStateFromStorage();
-    renderApp();
+async function bootstrap() {
+    try {
+        // Initialize Rust WebAssembly module
+        await init();
+        wasmInitialized = true;
+        console.log("🦀 Motor financer en Rust (WebAssembly) inicialitzat correctament.");
 
-    // Onboarding Salary Input listener
-    const onboardIncomeInput = document.getElementById('onboardIncome');
-    if (onboardIncomeInput) {
-        onboardIncomeInput.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value) || 0;
-            state.monthly_income = val;
-            renderAllocationTable('onboardCategoriesTableBody', 'onboardTotalPctBadge', val, false);
-        });
-    }
+        loadStateFromStorage();
+        renderApp();
 
-    // Reset default percentages in Onboarding & Config
-    const btnResetPcts = document.getElementById('btnResetDefaultPcts');
-    if (btnResetPcts) {
-        btnResetPcts.addEventListener('click', () => {
-            resetDefaultPercentages();
-            const val = parseFloat(onboardIncomeInput.value) || state.monthly_income;
-            renderAllocationTable('onboardCategoriesTableBody', 'onboardTotalPctBadge', val, false);
-        });
-    }
-
-    const btnCfgResetPcts = document.getElementById('btnCfgResetPcts');
-    if (btnCfgResetPcts) {
-        btnCfgResetPcts.addEventListener('click', () => {
-            resetDefaultPercentages();
-            const val = parseFloat(document.getElementById('cfgIncome').value) || state.monthly_income;
-            renderAllocationTable('cfgCategoriesTableBody', 'cfgTotalPctBadge', val, true);
-        });
-    }
-
-    // Onboarding Wizard Navigation
-    document.getElementById('btnGoToStep2').addEventListener('click', () => {
-        const income = parseFloat(document.getElementById('onboardIncome').value);
-        if (isNaN(income) || income <= 0) {
-            alert("Si us plau, introduïu un salari net mensual vàlid.");
-            return;
-        }
-        state.monthly_income = income;
-        populateCategoryDropdowns();
-        renderOnboardRecTable();
-
-        document.getElementById('onboardingStep1').classList.remove('active');
-        document.getElementById('onboardingStep2').classList.add('active');
-    });
-
-    document.getElementById('btnBackToStep1').addEventListener('click', () => {
-        document.getElementById('onboardingStep2').classList.remove('active');
-        document.getElementById('onboardingStep1').classList.add('active');
-    });
-
-    document.getElementById('btnFinishOnboarding').addEventListener('click', () => {
-        state.setup_completed = true;
-        saveState();
-    });
-
-    // Form Add Recurring during Onboarding
-    document.getElementById('formOnboardAddRec').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('onboardRecName').value.trim();
-        const amount = parseFloat(document.getElementById('onboardRecAmount').value);
-        const freq = document.getElementById('onboardRecFreq').value;
-        const catId = document.getElementById('onboardRecCat').value;
-
-        if (!name || isNaN(amount) || amount <= 0) return;
-
-        state.recurring_expenses.push({
-            id: 'rec_' + Date.now(),
-            name,
-            amount,
-            frequency: freq,
-            category_id: catId
-        });
-
-        document.getElementById('onboardRecName').value = '';
-        document.getElementById('onboardRecAmount').value = '';
-        renderOnboardRecTable();
-    });
-
-    // Header Actions
-    document.getElementById('btnAdvanceDay').addEventListener('click', advanceDay);
-
-    document.getElementById('btnOpenExpenseModal').addEventListener('click', () => openAddExpenseForCat(null));
-
-    document.getElementById('btnOpenConfigModal').addEventListener('click', () => {
-        document.getElementById('cfgIncome').value = state.monthly_income;
-        renderAllocationTable('cfgCategoriesTableBody', 'cfgTotalPctBadge', state.monthly_income, true);
-        renderRecurringTable();
-        populateCategoryDropdowns();
-        document.getElementById('modalConfig').classList.add('active');
-    });
-
-    // Close Modals
-    document.getElementById('btnCloseExpenseModal').addEventListener('click', () => {
-        document.getElementById('modalExpense').classList.remove('active');
-    });
-    document.getElementById('btnCancelExpense').addEventListener('click', () => {
-        document.getElementById('modalExpense').classList.remove('active');
-    });
-    document.getElementById('btnCloseConfigModal').addEventListener('click', () => {
-        document.getElementById('modalConfig').classList.remove('active');
-    });
-
-    // Save Expense Form Submit
-    document.getElementById('formExpense').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const id = document.getElementById('expEditId').value;
-        const catId = document.getElementById('expCategory').value;
-        const amount = parseFloat(document.getElementById('expAmount').value);
-        const note = document.getElementById('expNote').value.trim();
-
-        if (isNaN(amount) || amount <= 0) return;
-
-        if (id) {
-            const exp = state.daily_expenses.find(e => e.id === id);
-            if (exp) {
-                exp.category_id = catId;
-                exp.amount = amount;
-                exp.note = note;
-            }
-        } else {
-            state.daily_expenses.push({
-                id: 'exp_' + Date.now(),
-                date: `Dia ${state.current_day}`,
-                amount,
-                category_id: catId,
-                note
+        // Onboarding Salary Input listener
+        const onboardIncomeInput = document.getElementById('onboardIncome');
+        if (onboardIncomeInput) {
+            onboardIncomeInput.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value) || 0;
+                state = JSON.parse(wasm_update_income(JSON.stringify(state), val));
+                renderAllocationTable('onboardCategoriesTableBody', 'onboardTotalPctBadge', val, false);
             });
         }
 
-        saveState();
-        document.getElementById('modalExpense').classList.remove('active');
-    });
-
-    // Save Income in Config Modal
-    document.getElementById('btnSaveIncome').addEventListener('click', () => {
-        const val = parseFloat(document.getElementById('cfgIncome').value);
-        if (!isNaN(val) && val >= 0) {
-            state.monthly_income = val;
-            saveState();
-            renderAllocationTable('cfgCategoriesTableBody', 'cfgTotalPctBadge', state.monthly_income, true);
-            alert("✅ Sou net mensual actualitzat correctament.");
-        }
-    });
-
-    // Save Percentages in Config Modal
-    const btnSavePercentages = document.getElementById('btnSavePercentages');
-    if (btnSavePercentages) {
-        btnSavePercentages.addEventListener('click', () => {
-            saveState();
-            alert("✅ Percentatges de les partides actualitzats correctament.");
-        });
-    }
-
-    // Add Recurring in Config Modal
-    document.getElementById('formAddRecurring').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const editId = document.getElementById('recEditId').value;
-        const name = document.getElementById('recName').value.trim();
-        const amount = parseFloat(document.getElementById('recAmount').value);
-        const freq = document.getElementById('recFreq').value;
-        const catId = document.getElementById('recCategory').value;
-
-        if (!name || isNaN(amount) || amount <= 0) return;
-
-        if (editId) {
-            const rec = state.recurring_expenses.find(r => r.id === editId);
-            if (rec) {
-                rec.name = name;
-                rec.amount = amount;
-                rec.frequency = freq;
-                rec.category_id = catId;
-            }
-            document.getElementById('recEditId').value = '';
-            document.getElementById('recFormTitle').textContent = 'Afegir Nova Despesa Recurrent';
-            document.getElementById('btnSubmitRecurring').textContent = '+ Guardar Recurrent';
-        } else {
-            state.recurring_expenses.push({
-                id: 'rec_' + Date.now(),
-                name,
-                amount,
-                frequency: freq,
-                category_id: catId
+        // Reset default percentages in Onboarding & Config
+        const btnResetPcts = document.getElementById('btnResetDefaultPcts');
+        if (btnResetPcts) {
+            btnResetPcts.addEventListener('click', () => {
+                resetDefaultPercentages('onboardCategoriesTableBody', 'onboardTotalPctBadge', false);
             });
         }
 
-        document.getElementById('recName').value = '';
-        document.getElementById('recAmount').value = '';
-        saveState();
-        renderRecurringTable();
-    });
+        const btnCfgResetPcts = document.getElementById('btnCfgResetPcts');
+        if (btnCfgResetPcts) {
+            btnCfgResetPcts.addEventListener('click', () => {
+                resetDefaultPercentages('cfgCategoriesTableBody', 'cfgTotalPctBadge', true);
+            });
+        }
 
-    // Restart Onboarding Button
-    document.getElementById('btnRestartOnboarding').addEventListener('click', () => {
-        if (confirm("Voleu tornar a obrir l'assistent de configuració inicial?")) {
-            state.setup_completed = false;
-            saveState();
-            closeAllModals();
+        // Onboarding Wizard Navigation
+        document.getElementById('btnGoToStep2').addEventListener('click', () => {
+            const income = parseFloat(document.getElementById('onboardIncome').value);
+            if (isNaN(income) || income <= 0) {
+                alert("Si us plau, introduïu un salari net mensual vàlid.");
+                return;
+            }
+            state = JSON.parse(wasm_update_income(JSON.stringify(state), income));
+            populateCategoryDropdowns();
+            renderOnboardRecTable();
+
+            document.getElementById('onboardingStep1').classList.remove('active');
+            document.getElementById('onboardingStep2').classList.add('active');
+        });
+
+        document.getElementById('btnBackToStep1').addEventListener('click', () => {
             document.getElementById('onboardingStep2').classList.remove('active');
             document.getElementById('onboardingStep1').classList.add('active');
-        }
-    });
+        });
 
-    // Reset All Data Button
-    document.getElementById('btnResetAllData').addEventListener('click', () => {
-        if (confirm("⚠️ Atenció: Això esborrarà totes les dades i reiniciarà l'aplicació de zero. Voleu continuar?")) {
-            localStorage.removeItem('gestor_finances_personals_state');
-            localStorage.removeItem('budgeting_quest_state');
-            state = getCleanDefaultState();
-            renderApp();
-            closeAllModals();
-        }
-    });
-
-    // Clear Expense History Button
-    document.getElementById('btnClearExpenses').addEventListener('click', () => {
-        if (confirm("Voleu netejar totes les despeses diàries registrades?")) {
-            state.daily_expenses = [];
+        document.getElementById('btnFinishOnboarding').addEventListener('click', () => {
+            state.setup_completed = true;
             saveState();
+        });
+
+        // Form Add Recurring during Onboarding
+        document.getElementById('formOnboardAddRec').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('onboardRecName').value.trim();
+            const amount = parseFloat(document.getElementById('onboardRecAmount').value);
+            const freq = document.getElementById('onboardRecFreq').value;
+            const catId = document.getElementById('onboardRecCat').value;
+
+            if (!name || isNaN(amount) || amount <= 0) return;
+
+            // Add recurring using Rust WASM
+            state = JSON.parse(wasm_add_recurring(JSON.stringify(state), name, amount, freq, catId));
+
+            document.getElementById('onboardRecName').value = '';
+            document.getElementById('onboardRecAmount').value = '';
+            renderOnboardRecTable();
+        });
+
+        // Header Actions
+        document.getElementById('btnAdvanceDay').addEventListener('click', advanceDay);
+
+        document.getElementById('btnOpenExpenseModal').addEventListener('click', () => openAddExpenseForCat(null));
+
+        document.getElementById('btnOpenConfigModal').addEventListener('click', () => {
+            document.getElementById('cfgIncome').value = state.monthly_income;
+            renderAllocationTable('cfgCategoriesTableBody', 'cfgTotalPctBadge', state.monthly_income, true);
+            renderRecurringTable();
+            populateCategoryDropdowns();
+            document.getElementById('modalConfig').classList.add('active');
+        });
+
+        // Close Modals
+        document.getElementById('btnCloseExpenseModal').addEventListener('click', () => {
+            document.getElementById('modalExpense').classList.remove('active');
+        });
+        document.getElementById('btnCancelExpense').addEventListener('click', () => {
+            document.getElementById('modalExpense').classList.remove('active');
+        });
+        document.getElementById('btnCloseConfigModal').addEventListener('click', () => {
+            document.getElementById('modalConfig').classList.remove('active');
+        });
+
+        // Save Expense Form Submit (Rust WASM)
+        document.getElementById('formExpense').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('expEditId').value;
+            const catId = document.getElementById('expCategory').value;
+            const amount = parseFloat(document.getElementById('expAmount').value);
+            const note = document.getElementById('expNote').value.trim();
+
+            if (isNaN(amount) || amount <= 0) return;
+
+            if (id) {
+                state = JSON.parse(wasm_update_expense(JSON.stringify(state), id, catId, amount, note, `Dia ${state.current_day}`));
+            } else {
+                state = JSON.parse(wasm_add_expense(JSON.stringify(state), catId, amount, note, `Dia ${state.current_day}`));
+            }
+
+            saveState();
+            document.getElementById('modalExpense').classList.remove('active');
+        });
+
+        // Save Income in Config Modal (Rust WASM)
+        document.getElementById('btnSaveIncome').addEventListener('click', () => {
+            const val = parseFloat(document.getElementById('cfgIncome').value);
+            if (!isNaN(val) && val >= 0) {
+                state = JSON.parse(wasm_update_income(JSON.stringify(state), val));
+                saveState();
+                renderAllocationTable('cfgCategoriesTableBody', 'cfgTotalPctBadge', state.monthly_income, true);
+                alert("✅ Sou net mensual actualitzat correctament.");
+            }
+        });
+
+        // Save Percentages in Config Modal
+        const btnSavePercentages = document.getElementById('btnSavePercentages');
+        if (btnSavePercentages) {
+            btnSavePercentages.addEventListener('click', () => {
+                saveState();
+                alert("✅ Percentatges de les partides actualitzats correctament.");
+            });
         }
-    });
 
-    // Backup & Restore File Trigger Handlers
-    const globalFileInput = document.getElementById('globalFileInputImport');
-    globalFileInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-            importStateFromFile(e.target.files[0]);
-            globalFileInput.value = ''; // Reset
-        }
-    });
+        // Add / Update Recurring in Config Modal (Rust WASM)
+        document.getElementById('formAddRecurring').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('recEditId').value;
+            const name = document.getElementById('recName').value.trim();
+            const amount = parseFloat(document.getElementById('recAmount').value);
+            const freq = document.getElementById('recFreq').value;
+            const catId = document.getElementById('recCategory').value;
 
-    const triggerImport = () => globalFileInput.click();
+            if (!name || isNaN(amount) || amount <= 0) return;
 
-    document.getElementById('btnHeaderExport').addEventListener('click', exportStateToFile);
-    document.getElementById('btnHeaderImport').addEventListener('click', triggerImport);
-    document.getElementById('btnModalExport').addEventListener('click', exportStateToFile);
-    document.getElementById('btnModalImport').addEventListener('click', triggerImport);
-    document.getElementById('btnOnboardImport').addEventListener('click', triggerImport);
-});
+            if (editId) {
+                state = JSON.parse(wasm_update_recurring(JSON.stringify(state), editId, name, amount, freq, catId));
+                document.getElementById('recEditId').value = '';
+                document.getElementById('recFormTitle').textContent = 'Afegir Nova Despesa Recurrent';
+                document.getElementById('btnSubmitRecurring').textContent = '+ Guardar Recurrent';
+            } else {
+                state = JSON.parse(wasm_add_recurring(JSON.stringify(state), name, amount, freq, catId));
+            }
+
+            document.getElementById('recName').value = '';
+            document.getElementById('recAmount').value = '';
+            saveState();
+            renderRecurringTable();
+        });
+
+        // Restart Onboarding Button
+        document.getElementById('btnRestartOnboarding').addEventListener('click', () => {
+            if (confirm("Voleu tornar a obrir l'assistent de configuració inicial?")) {
+                state.setup_completed = false;
+                saveState();
+                closeAllModals();
+                document.getElementById('onboardingStep2').classList.remove('active');
+                document.getElementById('onboardingStep1').classList.add('active');
+            }
+        });
+
+        // Reset All Data Button
+        document.getElementById('btnResetAllData').addEventListener('click', () => {
+            if (confirm("⚠️ Atenció: Això esborrarà totes les dades i reiniciarà l'aplicació de zero. Voleu continuar?")) {
+                localStorage.removeItem('gestor_finances_personals_state');
+                localStorage.removeItem('budgeting_quest_state');
+                state = getCleanDefaultState();
+                renderApp();
+                closeAllModals();
+            }
+        });
+
+        // Clear Expense History Button (Rust WASM)
+        document.getElementById('btnClearExpenses').addEventListener('click', () => {
+            if (confirm("Voleu netejar totes les despeses diàries registrades?")) {
+                state = JSON.parse(wasm_clear_expenses(JSON.stringify(state)));
+                saveState();
+            }
+        });
+
+        // Backup & Restore File Trigger Handlers
+        const globalFileInput = document.getElementById('globalFileInputImport');
+        globalFileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                importStateFromFile(e.target.files[0]);
+                globalFileInput.value = ''; // Reset
+            }
+        });
+
+        const triggerImport = () => globalFileInput.click();
+
+        document.getElementById('btnHeaderExport').addEventListener('click', exportStateToFile);
+        document.getElementById('btnHeaderImport').addEventListener('click', triggerImport);
+        document.getElementById('btnModalExport').addEventListener('click', exportStateToFile);
+        document.getElementById('btnModalImport').addEventListener('click', triggerImport);
+        document.getElementById('btnOnboardImport').addEventListener('click', triggerImport);
+
+    } catch (err) {
+        console.error("Error durant la inicialització de WebAssembly:", err);
+    }
+}
+
+// Start application
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+    bootstrap();
+}

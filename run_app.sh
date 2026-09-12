@@ -2,6 +2,7 @@
 echo "================================================================="
 echo "   🏛️ GESTOR DE FINANCES PERSONALS (DESKTOP & WEB APP)"
 echo "================================================================="
-echo "Compilant i executant la versió nativa en Rust amb interfície d'escriptori..."
+echo "🦀 Compilant el motor Rust a WebAssembly (WASM)..."
+wasm-pack build --target web --out-dir www/pkg
+echo "🚀 Executant l'aplicació nativa en Rust amb interfície d'escriptori..."
 cargo run --release
-

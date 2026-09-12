@@ -4,6 +4,14 @@ Tots els canvis notables en aquest projecte es documenten en aquest fitxer.
 
 El format es basa en [Keep a Changelog](https://keepachangelog.com/ca/1.0.0/) i aquest projecte segueix [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-09-12
+
+### ✨ Noves Funcionalitats
+- **Unificació Total en Rust (WebAssembly)**: Tot el motor de càlcul financer, deduccions diàries, transicions d'estat i liquidació de final de mes s'executen exclusivament en Rust compilat a WebAssembly (`wasm-pack`).
+- **Eliminació de Codi Duplicat**: JavaScript ara actua com a pura capa de presentació i manipulació del DOM (UI/UX), delegant el 100% de la lògica de negoci a WASM.
+- **Servidor d'Escriptori amb Suport WASM**: Servidor HTTP en Rust amb suport natiu per a binaris `.wasm` (`application/wasm`) i mòduls ES6.
+- **Workflow de Desplegament Automàtic a GitHub Pages**: Compilació automàtica del paquet WebAssembly mitjançant GitHub Actions abans de publicar.
+
 ---
 
 ## [0.2.0] - 2026-09-10

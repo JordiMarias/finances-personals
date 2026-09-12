@@ -1,52 +1,33 @@
-# Walkthrough: Gestor de Finances Personals (Estil CaixaBank)
+# Walkthrough: Gestor de Finances Personals (Unificació en Rust WebAssembly)
 
-S'ha dut a terme una transformació completa de l'aplicació per convertir-la en un **Gestor de Finances Personals** professional, amb disseny corporatiu de banca digital (estil CaixaBank), paritat total entre l'execució d'escriptori (Rust) i web, salari mínim per defecte, percentatges totalment editables i sistema de còpies de seguretat en fitxers JSON.
+S'ha transformat l'aplicació per convertir **Rust** en l'única font de veritat financera (*Single Source of Truth*), executat tant de manera nativa com al navegador mitjançant **WebAssembly (WASM)**.
 
 ---
 
 ## 🛠️ Canvis Implementats
 
-### 1. Disseny Corporatiu Professional (Estil CaixaBank)
-- **Paleta de Colors i Estètica**:
-  - Blau marí intens (`#002b49` / `#001e33`) i blau corporatiu (`#007ea8`), amb targetes blanques sobre fons gris-clar (`#f4f7fa`).
-  - Nomenclatura seriosa i bancària: eliminació de termes de videojoc (*quests, streaks, ratxes*) i substitució per termes financers reals (*Límit diari net disponible, Saldo acumulat, Liquidació de període mensual, Fons de reserva i d'inversió*).
-- **Tipografia i Maquetació**:
-  - Ús de `Plus Jakarta Sans` i xifres amb alineació tabular (`tabular-nums`) per a una lectura impecable de les xifres financeres.
+### 1. Motor WebAssembly en Rust ([src/wasm_api.rs](file:///home/jordimarias/Desktop/finances-personals/src/wasm_api.rs))
+- Ampliació de l'API exportada mitjançant `#[wasm_bindgen]` per gestionar tot el cicle de vida:
+  - Càlcul de resums de categories i mètriques KPI (`wasm_get_all_summaries`).
+  - Creació, edició i eliminació de despeses diàries i recurrents.
+  - Modificació de percentatges i restauració de valors per defecte.
+  - Simulació d'avançament de dies i liquidació de tancament de mes amb transferència de romanents a fons.
 
-### 2. Salari Mínim Interprofessional (SMI) per Defecte
-- El formulari inicial d'onboarding i l'estat per defecte inicialitzen el sou net mensual amb el valor del **SMI de referència (1.323,00 € / mes en 12 pagues)**.
-- S'inclou un missatge informatiu d'ajuda indicant la referència del valor i facilitant que l'usuari l'augmenti segons els seus ingressos reals.
+### 2. Capa de Presentació JavaScript Pura ([www/app.js](file:///home/jordimarias/Desktop/finances-personals/www/app.js))
+- S'ha eliminat tota duplicitat d'algorismes matemàtics en JavaScript.
+- L'aplicació s'ha migrat a mòdul ES6 (`<script type="module" src="app.js"></script>`) i inicialitza directament el binari WASM (`./pkg/budgeting_app.js` i `.wasm`).
+- El frontend ara s'encarrega exclusivament de la interacció amb el DOM, formularis i emmagatzematge local (`localStorage`).
 
-### 3. Percentatges de Partides Pressupostàries Editables
-- Tant a l'assistent d'onboarding com a la finestra de Configuració, s'ha implementat una taula interactiva amb inputs numèrics per editar el percentatge de cadascuna de les 6 categories.
-- **Recàlcul en viu**: Quan es canvia un percentatge, s'actualitza a l'instant el total de percentatge (amb indicador verd si suma 100% o advertència si no suma 100%) i els imports mensuals (€) i diaris (€/dia).
-- Botó de restauració directa als valors recomanats per defecte (30% Habitatge, 10% Transport, 10% Alimentació, 5% Subministraments, 25% Oci, 20% Estalvi).
+### 3. Servidor Local i Paritat Desktop ([src/main.rs](file:///home/jordimarias/Desktop/finances-personals/src/main.rs))
+- El servidor HTTP integrat de zero dependències ara serveix correctament el tipus MIME `application/wasm` i la ruta `/pkg/*`.
 
-### 4. Paritat Total entre Escriptori (Rust) i Web
-- S'ha actualitzat [src/main.rs](file:///home/jordimarias/Desktop/Budgeting/src/main.rs) incorporant un servidor HTTP embegut ultralleuger basat exclusivament en la llibreria estàndard de Rust (`std::net::TcpListener`), sense dependències externes `.so`.
-- En executar `cargo run --release` o `./run_app.sh`, l'aplicació incrusta tots els actius web (`index.html`, `style.css`, `app.js`) directament al binari i obre de forma immediata una finestra d'aplicació d'escriptori amb la mateixa interfície gràfica.
-- També s'inclou el paràmetre `--cli` (`cargo run -- --cli`) per a qui vulgui consultar el resum financer des del terminal.
-
-### 5. Còpies de Seguretat (Exportar i Importar fitxers JSON)
-- **Exportar Còpia (.json)**: Genera i descarrega al disc un fitxer `.json` amb l'estat complet de l'aplicació (sou, percentatges personalitzats, despeses recurrents, historial de moviments, dia actual i fons acumulats).
-- **Importar Còpia (.json)**: Permet carregar qualsevol fitxer de còpia prèvia des del disc (accessible des de la capçalera, la finestra de configuració i la primera pantalla de l'onboarding).
+### 4. Automatització de GitHub Pages ([.github/workflows/deploy-pages.yml](file:///home/jordimarias/Desktop/finances-personals/.github/workflows/deploy-pages.yml))
+- El workflow compila automàticament el paquet WebAssembly amb `wasm-pack` abans de publicar a GitHub Pages.
 
 ---
 
 ## 🧪 Verificació i Proves
 
-### 1. Testos Automatitzats (`cargo test`)
-Tots els testos unitaris financers s'executen amb èxit:
-```
-test test_daily_accumulation_and_expense ... ok
-test test_end_of_month_settlement ... ok
-test test_ods_financial_values ... ok
-```
-
-### 2. Proves Funcionals amb Navegador
-Mitjançant el subagent de navegació s'ha verificat:
-1. **Onboarding Pas 1**: Estètica CaixaBank, sou per defecte de 1.323,00 €, edició dinàmica de percentatges i recàlcul en temps real.
-2. **Onboarding Pas 2**: Afegiment de despeses recurrents i transició fluida al tauler principal.
-3. **Dashboard Principal**: Visualització de mètriques KPI, targetes de partides amb barres de progrés i saldos acumulats.
-4. **Operacions Diàries**: Anotació de noves despeses, actualització de l'historial i del saldo de cada categoria.
-5. **Simulació i Liquidació**: Funcionament de l'avançament de dia i descàrrega de la còpia de seguretat en format JSON.
+1. **Testos Unitari en Rust**: Execució de `cargo test` amb 3/3 testos aprovats.
+2. **Compilació WASM**: Execució de `wasm-pack build --target web --out-dir www/pkg` amb èxit.
+3. **Proves Funcionals amb Navegador**: Verificació completa del flux d'onboarding, assignació de percentatges, despeses fixes, despeses diàries, simulació de dies i exportació JSON.
