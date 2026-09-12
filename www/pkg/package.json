@@ -1,0 +1,15 @@
+{
+  "name": "budgeting_app",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "budgeting_app_bg.wasm",
+    "budgeting_app.js",
+    "budgeting_app.d.ts"
+  ],
+  "main": "budgeting_app.js",
+  "types": "budgeting_app.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -3,6 +3,7 @@
 **/*.rs.bk
 *.pdb
 Cargo.lock.bk
+!www/pkg/
 
 # OS generated files
 .DS_Store
